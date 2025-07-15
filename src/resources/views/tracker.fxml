@@ -12,7 +12,7 @@
     </padding>
 
     <center>
-        <TabPane>
+        <TabPane  tabClosingPolicy="UNAVAILABLE">
             <!-- Onglet 1 : Modèle Idéal -->
             <Tab text="Modèle Idéal">
                 <VBox spacing="10">
@@ -25,24 +25,29 @@
                     <TextField fx:id="sortie2IdealeField" promptText="Sortie 2 idéale"/>
                 </VBox>
             </Tab>
-
-            <!-- Onglet 2 : Réalité terrain -->
             <Tab text="Réalité terrain">
                 <ScrollPane fitToWidth="true">
-                <VBox spacing="15">
-                    <padding>
-                        <Insets top="10" right="10" bottom="10" left="10"/>
-                    </padding>
+                    <VBox spacing="15">
+                        <padding>
+                            <Insets top="10" right="10" bottom="10" left="10"/>
+                        </padding>
 
-                    <!-- Bouton pour ajouter des jours dynamiquement -->
-                    <Button text="+ Ajouter un jour" onAction="#ajouterJour"/>
+                        <!-- Zone des statistiques globales -->
+                        <VBox spacing="5" fx:id="statistiquesGlobales" style="-fx-background-color: #f0f0f0; -fx-padding: 10; -fx-border-color: lightgray; -fx-border-radius: 5;">
+                            <Label fx:id="labelMeilleurePerf" text="📈 Meilleur jour : " textFill="green" style="-fx-font-weight: bold"/>
+                            <Label fx:id="labelPlusGrossePerte" text="📉 Pire jour : " textFill="red" style="-fx-font-weight: bold"/>
+                            <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne performance : " textFill="blue" style="-fx-font-weight: bold"/>
+                        </VBox>
 
-                    <!-- Zone où les jours vont s’ajouter -->
-                    <VBox fx:id="joursContainer" spacing="20"/>
+                        <!-- Bouton pour ajouter des jours dynamiquement -->
+                        <Button text="+ Ajouter un jour" onAction="#ajouterJour"/>
 
-                </VBox>
+                        <!-- Zone où les jours vont s’ajouter -->
+                        <VBox fx:id="joursContainer" spacing="20"/>
+                    </VBox>
                 </ScrollPane>
             </Tab>
+
         </TabPane>
     </center>
 </BorderPane>

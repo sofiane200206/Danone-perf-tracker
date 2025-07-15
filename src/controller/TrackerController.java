@@ -20,6 +20,13 @@ public class TrackerController {
     private TextField sortie2IdealeField;
 
     @FXML
+    private Label labelMeilleurePerf;
+    @FXML
+    private Label labelPlusGrossePerte;
+    @FXML
+    private Label labelMoyenneGlobale;
+
+    @FXML
     private VBox joursContainer;
 
     private int jourCounter = 1;
@@ -74,7 +81,15 @@ public class TrackerController {
             double sortie1Ideale = Double.parseDouble(sortie1IdealeField.getText());
             double sortie2Ideale = Double.parseDouble(sortie2IdealeField.getText());
 
-            for (JourFields jour : jours) {
+            double somme = 0;
+            double maxPerf = Double.MIN_VALUE;
+            double minPerf = Double.MAX_VALUE;
+            int jourMax = -1;
+            int jourMin = -1;
+
+            for (int i = 0; i < jours.size(); i++) {
+                JourFields jour = jours.get(i);
+
                 double qteReelle = Double.parseDouble(jour.entreeReelle.getText());
                 double sortie1Reelle = Double.parseDouble(jour.sortie1Reelle.getText());
                 double sortie2Reelle = Double.parseDouble(jour.sortie2Reelle.getText());
@@ -91,6 +106,7 @@ public class TrackerController {
                 double perf2 = (sortie2Reelle / sortie2IdealeReelle) * 100;
                 double perfGlobale = (totalReel / totalIdealeReelle) * 100;
 
+                // Résumé texte
                 StringBuilder sb = new StringBuilder();
                 sb.append(String.format("S1: %.2fkg (%+,.2fkg) - %.1f%%\n", sortie1Reelle, diff1, perf1));
                 sb.append(String.format("S2: %.2fkg (%+,.2fkg) - %.1f%%\n", sortie2Reelle, diff2, perf2));
@@ -99,7 +115,24 @@ public class TrackerController {
                 jour.resultatLabel.setText(sb.toString());
                 jour.resultatLabel.setTextFill(perfGlobale < 100 ? Color.RED :
                         (perfGlobale > 100 ? Color.GREEN : Color.GRAY));
+
+                // Pour les stats globales
+                somme += perfGlobale;
+                if (perfGlobale > maxPerf) {
+                    maxPerf = perfGlobale;
+                    jourMax = i + 1;
+                }
+                if (perfGlobale < minPerf) {
+                    minPerf = perfGlobale;
+                    jourMin = i + 1;
+                }
             }
+
+            double moyenne = somme / jours.size();
+
+            labelMeilleurePerf.setText(String.format("📈 Meilleur jour : Jour %d → %.1f%%", jourMax, maxPerf));
+            labelPlusGrossePerte.setText(String.format("📉 Plus grosse perte : Jour %d → %.1f%%", jourMin, minPerf));
+            labelMoyenneGlobale.setText(String.format("📊 Moyenne performance : %.1f%%", moyenne));
 
         } catch (NumberFormatException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -108,4 +141,5 @@ public class TrackerController {
             alert.show();
         }
     }
+
 }
