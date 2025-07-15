@@ -1,9 +1,12 @@
 package controller;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TrackerController {
 
@@ -17,58 +20,92 @@ public class TrackerController {
     private TextField sortie2IdealeField;
 
     @FXML
-    private TextField quantiteEntreeReelleField;
-    @FXML
-    private TextField sortie1ReelleField;
-    @FXML
-    private TextField sortie2ReelleField;
+    private VBox joursContainer;
+
+    private int jourCounter = 1;
+
+    private static class JourFields {
+        Label label;
+        TextField entreeReelle;
+        TextField sortie1Reelle;
+        TextField sortie2Reelle;
+        Label resultatLabel;
+
+        VBox getVBox() {
+            VBox vbox = new VBox(5);
+            vbox.getChildren().addAll(label, entreeReelle, sortie1Reelle, sortie2Reelle, resultatLabel);
+            return vbox;
+        }
+    }
+
+    private final List<JourFields> jours = new ArrayList<>();
 
     @FXML
-    private Label resultatLabel;
+    public void ajouterJour() {
+        JourFields jour = new JourFields();
+        jour.label = new Label("Jour " + jourCounter);
+        jour.entreeReelle = new TextField();
+        jour.entreeReelle.setPromptText("Quantité entrée réelle");
 
-    @FXML
-    public void calculerPerformance() {
+        jour.sortie1Reelle = new TextField();
+        jour.sortie1Reelle.setPromptText("Sortie 1 réelle");
+
+        jour.sortie2Reelle = new TextField();
+        jour.sortie2Reelle.setPromptText("Sortie 2 réelle");
+
+        jour.resultatLabel = new Label();
+
+        jours.add(jour);
+        joursContainer.getChildren().add(jour.getVBox());
+
+        jourCounter++;
+
+        // Ajouter bouton de calcul après le 1er jour
+        if (jours.size() == 1) {
+            Button btnCalculer = new Button("Calculer les performances");
+            btnCalculer.setOnAction(e -> calculerToutesPerformances());
+            joursContainer.getChildren().add(btnCalculer);
+        }
+    }
+
+    public void calculerToutesPerformances() {
         try {
             double qteIdeale = Double.parseDouble(quantiteEntreeIdealeField.getText());
             double sortie1Ideale = Double.parseDouble(sortie1IdealeField.getText());
             double sortie2Ideale = Double.parseDouble(sortie2IdealeField.getText());
 
-            double qteReelle = Double.parseDouble(quantiteEntreeReelleField.getText());
-            double sortie1Reelle = Double.parseDouble(sortie1ReelleField.getText());
-            double sortie2Reelle = Double.parseDouble(sortie2ReelleField.getText());
+            for (JourFields jour : jours) {
+                double qteReelle = Double.parseDouble(jour.entreeReelle.getText());
+                double sortie1Reelle = Double.parseDouble(jour.sortie1Reelle.getText());
+                double sortie2Reelle = Double.parseDouble(jour.sortie2Reelle.getText());
 
-            // Proportion idéale
-            double sortie1IdealeReelle = (qteReelle * sortie1Ideale) / qteIdeale;
-            double sortie2IdealeReelle = (qteReelle * sortie2Ideale) / qteIdeale;
-            double totalIdealeReelle = sortie1IdealeReelle + sortie2IdealeReelle;
+                double sortie1IdealeReelle = (qteReelle * sortie1Ideale) / qteIdeale;
+                double sortie2IdealeReelle = (qteReelle * sortie2Ideale) / qteIdeale;
+                double totalIdealeReelle = sortie1IdealeReelle + sortie2IdealeReelle;
+                double totalReel = sortie1Reelle + sortie2Reelle;
 
-            // Totaux réels
-            double totalReel = sortie1Reelle + sortie2Reelle;
+                double diff1 = sortie1Reelle - sortie1IdealeReelle;
+                double diff2 = sortie2Reelle - sortie2IdealeReelle;
 
-            // Pertes ou gains
-            double diff1 = sortie1Reelle - sortie1IdealeReelle;
-            double diff2 = sortie2Reelle - sortie2IdealeReelle;
-            double performance = (totalReel / totalIdealeReelle) * 100;
+                double perf1 = (sortie1Reelle / sortie1IdealeReelle) * 100;
+                double perf2 = (sortie2Reelle / sortie2IdealeReelle) * 100;
+                double perfGlobale = (totalReel / totalIdealeReelle) * 100;
 
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("Sortie 1 : %.2f kg (%s%.2f kg)\n", sortie1Reelle,
-                    diff1 >= 0 ? "+" : "", diff1));
-            sb.append(String.format("Sortie 2 : %.2f kg (%s%.2f kg)\n", sortie2Reelle,
-                    diff2 >= 0 ? "+" : "", diff2));
-            sb.append(String.format("Performance globale : %.2f%%", performance));
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("S1: %.2fkg (%+,.2fkg) - %.1f%%\n", sortie1Reelle, diff1, perf1));
+                sb.append(String.format("S2: %.2fkg (%+,.2fkg) - %.1f%%\n", sortie2Reelle, diff2, perf2));
+                sb.append(String.format("Perf globale: %.1f%%", perfGlobale));
 
-            resultatLabel.setText(sb.toString());
-
-            // Couleur selon performance
-            if (performance < 100) {
-                resultatLabel.setTextFill(Color.RED);
-            } else if (performance > 100) {
-                resultatLabel.setTextFill(Color.GREEN);
-            } else if (performance == 100) {resultatLabel.setTextFill(Color.GRAY);}
+                jour.resultatLabel.setText(sb.toString());
+                jour.resultatLabel.setTextFill(perfGlobale < 100 ? Color.RED :
+                        (perfGlobale > 100 ? Color.GREEN : Color.GRAY));
+            }
 
         } catch (NumberFormatException e) {
-            resultatLabel.setText("Veuillez remplir tous les champs avec des nombres valides.");
-            resultatLabel.setTextFill(Color.ORANGE);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setHeaderText("Erreur de saisie");
+            alert.setContentText("Veuillez entrer uniquement des nombres valides.");
+            alert.show();
         }
     }
 }
