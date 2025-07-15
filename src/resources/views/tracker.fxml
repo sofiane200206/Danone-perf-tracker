@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.geometry.Insets?>
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="controller.TrackerController">
+    <padding>
+    <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <center>
+        <TabPane>
+            <!-- Onglet 1 : Réglages idéaux -->
+            <Tab text="Modèle Idéal">
+                <VBox spacing="10">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+
+                    <TextField fx:id="matierePremiereField" promptText="Nom matière première"/>
+                    <TextField fx:id="quantiteEntreeIdealeField" promptText="Quantité entrée idéale"/>
+                    <TextField fx:id="sortie1IdealeField" promptText="Sortie 1 idéale"/>
+                    <TextField fx:id="sortie2IdealeField" promptText="Sortie 2 idéale"/>
+                </VBox>
+            </Tab>
+
+            <!-- Onglet 2 : Données réelles -->
+            <Tab text="Réalité terrain">
+                <VBox spacing="10">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+                    <TextField fx:id="quantiteEntreeReelleField" promptText="Quantité entrée réelle"/>
+                    <TextField fx:id="sortie1ReelleField" promptText="Sortie 1 réelle"/>
+                    <TextField fx:id="sortie2ReelleField" promptText="Sortie 2 réelle"/>
+                    <Button text="Calculer la performance" onAction="#calculerPerformance"/>
+                    <Label fx:id="resultatLabel"/>
+                </VBox>
+            </Tab>
+        </TabPane>
+    </center>
+</BorderPane>
