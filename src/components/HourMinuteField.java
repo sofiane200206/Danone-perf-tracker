@@ -5,6 +5,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.HBox;
 
+import java.time.LocalTime;
+
 public class HourMinuteField extends HBox {
 
     private final TextField h1 = createDigitField();
@@ -31,6 +33,30 @@ public class HourMinuteField extends HBox {
 
     public String getTime() {
         return h1.getText() + h2.getText() + ":" + m1.getText() + m2.getText();
+    }
+
+    public LocalTime getLocalTime() {
+        try {
+            // Utiliser getTime() au lieu de getText()
+            String timeText = getTime();
+            if (timeText == null || timeText.trim().isEmpty()) {
+                return null;
+            }
+
+            // Vérifier que tous les champs sont remplis
+            if (h1.getText().isEmpty() || h2.getText().isEmpty() ||
+                    m1.getText().isEmpty() || m2.getText().isEmpty()) {
+                return null;
+            }
+
+            // Créer l'heure au format "HH:mm"
+            String formattedTime = String.format("%s%s:%s%s",
+                    h1.getText(), h2.getText(), m1.getText(), m2.getText());
+
+            return LocalTime.parse(formattedTime);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public boolean isValidTime() {
@@ -64,6 +90,13 @@ public class HourMinuteField extends HBox {
             h2.setText(String.valueOf(hours % 10));
             m1.setText(String.valueOf(minutes / 10));
             m2.setText(String.valueOf(minutes % 10));
+        }
+    }
+
+    // Méthode pour définir une heure à partir d'un LocalTime
+    public void setTime(LocalTime time) {
+        if (time != null) {
+            setTime(time.getHour(), time.getMinute());
         }
     }
 

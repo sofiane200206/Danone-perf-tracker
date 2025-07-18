@@ -12,7 +12,7 @@
     </padding>
 
     <center>
-        <TabPane  tabClosingPolicy="UNAVAILABLE">
+        <TabPane tabClosingPolicy="UNAVAILABLE">
             <!-- Onglet 1 : Modèle Idéal -->
             <Tab text="Modèle Idéal">
                 <VBox spacing="10">
@@ -25,6 +25,8 @@
                     <TextField fx:id="sortie2IdealeField" promptText="Sortie 2 idéale"/>
                 </VBox>
             </Tab>
+
+            <!-- Onglet 2 : Réalité terrain avec filtrage -->
             <Tab text="Réalité terrain">
                 <ScrollPane fitToWidth="true">
                     <VBox spacing="15">
@@ -32,20 +34,76 @@
                             <Insets top="10" right="10" bottom="10" left="10"/>
                         </padding>
 
+                        <!-- Section filtrage par période -->
+                        <VBox spacing="10" style="-fx-background-color: #e8f4f8; -fx-padding: 15; -fx-border-color: #4a90e2; -fx-border-radius: 8; -fx-border-width: 2;">
+                            <Label text="🔍 Filtrage par période" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+
+                            <!-- Sélection des dates -->
+                            <HBox spacing="15" alignment="CENTER_LEFT">
+                                <Label text="Du :" style="-fx-font-weight: bold;"/>
+                                <DatePicker fx:id="dateDebutFiltre" />
+                                <Label text="Au :" style="-fx-font-weight: bold;"/>
+                                <DatePicker fx:id="dateFinFiltre" />
+                                <Button fx:id="btnAppliquerFiltre" text="Appliquer filtre" style="-fx-background-color: #4a90e2; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                                <Button fx:id="btnVoirTout" text="Voir tout" style="-fx-background-color: #95a5a6; -fx-text-fill: white;"/>
+                            </HBox>
+
+                            <!-- Boutons raccourcis -->
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <Label text="Raccourcis :" style="-fx-font-weight: bold;"/>
+                                <Button text="7 derniers jours" onAction="#filtrer7DerniersJours" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11px;"/>
+                                <Button text="Semaine courante" onAction="#filtrerSemaineCourante" style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11px;"/>
+                                <Button text="Mois courant" onAction="#filtrerMoisCourant" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 11px;"/>
+                            </HBox>
+
+                            <!-- Indicateur de filtre actuel -->
+                            <Label fx:id="labelFiltrageActuel" text="📅 Toutes les productions" style="-fx-font-weight: bold; -fx-text-fill: #2c3e50; -fx-font-size: 12px;"/>
+                        </VBox>
+
                         <!-- Zone des statistiques globales -->
-                        <VBox spacing="5" fx:id="statistiquesGlobales" style="-fx-background-color: #f0f0f0; -fx-padding: 10; -fx-border-color: lightgray; -fx-border-radius: 5;">
-                            <Label fx:id="labelMeilleurePerf" text="📈 Meilleur jour : " textFill="green" style="-fx-font-weight: bold"/>
-                            <Label fx:id="labelPlusGrossePerte" text="📉 Pire jour : " textFill="red" style="-fx-font-weight: bold"/>
-                            <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne performance : " textFill="blue" style="-fx-font-weight: bold"/>
+                        <VBox spacing="8" fx:id="statistiquesGlobales" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-border-width: 1;">
+                            <Label text="📊 Statistiques de performance" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #495057;"/>
+                            <Separator/>
+                            <Label fx:id="labelMeilleurePerf" text="📈 Meilleur jour : " textFill="#28a745" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
+                            <Label fx:id="labelPlusGrossePerte" text="📉 Pire jour : " textFill="#dc3545" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
+                            <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne performance : " textFill="#007bff" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
                         </VBox>
 
                         <!-- Bouton pour ajouter des jours dynamiquement -->
-                        <Button text="+ Ajouter un jour" onAction="#ajouterJour"/>
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <Button text="+ Ajouter une production" onAction="#ajouterJour" style="-fx-background-color: #17a2b8; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10;"/>
+                            <Separator orientation="VERTICAL"/>
+                            <Label text="💡 Astuce : Utilisez les filtres ci-dessus pour analyser des périodes spécifiques" style="-fx-font-style: italic; -fx-text-fill: #6c757d; -fx-font-size: 11px;"/>
+                        </HBox>
 
-                        <!-- Zone où les jours vont s’ajouter -->
+                        <!-- Zone où les jours vont s'ajouter -->
                         <VBox fx:id="joursContainer" spacing="20"/>
                     </VBox>
                 </ScrollPane>
+            </Tab>
+
+            <!-- Onglet 3 : Analyse avancée (optionnel pour le futur) -->
+            <Tab text="Analyse avancée">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+
+                    <!-- Placeholder pour futures fonctionnalités -->
+                    <VBox spacing="10" style="-fx-background-color: #fff3cd; -fx-padding: 20; -fx-border-color: #ffeaa7; -fx-border-radius: 8;">
+                        <Label text="🚧 Fonctionnalités à venir" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+                        <Label text="• Graphiques de performance" style="-fx-font-size: 12px;"/>
+                        <Label text="• Prévisions de production" style="-fx-font-size: 12px;"/>
+                        <Label text="• Export des données" style="-fx-font-size: 12px;"/>
+                        <Label text="• Comparaisons multi-périodes" style="-fx-font-size: 12px;"/>
+                        <Label text="• Alertes de performance" style="-fx-font-size: 12px;"/>
+                    </VBox>
+
+                    <!-- Section pour les résultats de filtres avancés -->
+                    <VBox fx:id="resultatsFiltresContainer" spacing="10">
+                        <!-- Les résultats de filtres spéciaux apparaîtront ici -->
+                    </VBox>
+                </VBox>
             </Tab>
 
         </TabPane>

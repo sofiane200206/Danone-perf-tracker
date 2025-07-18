@@ -5,37 +5,41 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import model.*;
+import service.*;
+import filter.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
 public class TrackerController {
 
-    @FXML
-    private TextField matierePremiereField;
-    @FXML
-    private TextField quantiteEntreeIdealeField;
-    @FXML
-    private TextField sortie1IdealeField;
-    @FXML
-    private TextField sortie2IdealeField;
+    // Composants FXML
+    @FXML private TextField matierePremiereField;
+    @FXML private TextField quantiteEntreeIdealeField;
+    @FXML private TextField sortie1IdealeField;
+    @FXML private TextField sortie2IdealeField;
+    @FXML private Label labelMeilleurePerf;
+    @FXML private Label labelPlusGrossePerte;
+    @FXML private Label labelMoyenneGlobale;
+    @FXML private VBox joursContainer;
+    @FXML private DatePicker dateDebutFiltre;
+    @FXML private DatePicker dateFinFiltre;
+    @FXML private Button btnAppliquerFiltre;
+    @FXML private Button btnVoirTout;
+    @FXML private Label labelFiltrageActuel;
 
-    @FXML
-    private Label labelMeilleurePerf;
-    @FXML
-    private Label labelPlusGrossePerte;
-    @FXML
-    private Label labelMoyenneGlobale;
+    // Services
+    private ProductionService productionService;
+    private FiltrePeriode filtreActuel;
+    private int compteurProductions = 1;
+    private List<ProductionUI> listeProductionUI = new java.util.ArrayList<>();
 
-    @FXML
-    private VBox joursContainer;
-
-    private int productionCounter = 1;
-
-    private static class ProductionFields {
+    // Composants UI pour les productions
+    private class ProductionUI {
+        Production production;
         Label label;
         DatePicker datePicker;
         HourMinuteField timeField;
@@ -43,6 +47,75 @@ public class TrackerController {
         TextField sortie1Reelle;
         TextField sortie2Reelle;
         Label resultatLabel;
+
+        ProductionUI(Production production) {
+            this.production = production;
+            initComponents();
+        }
+
+
+
+        private void mettreAJourProduction() {
+            try {
+                // Validation et mise à jour du modèle
+                if (timeField.isValidTime()) {
+                    LocalTime localTime = timeField.getLocalTime();
+                    if (localTime != null) {
+                        production.setHeure(localTime);
+                    }
+                }
+
+                if (!entreeReelle.getText().isEmpty()) {
+                    production.setQuantiteEntreeReelle(Double.parseDouble(entreeReelle.getText()));
+                }
+
+                if (!sortie1Reelle.getText().isEmpty()) {
+                    production.setSortie1Reelle(Double.parseDouble(sortie1Reelle.getText()));
+                }
+
+                if (!sortie2Reelle.getText().isEmpty()) {
+                    production.setSortie2Reelle(Double.parseDouble(sortie2Reelle.getText()));
+                }
+
+                production.setStatut("VALIDE");
+
+            } catch (NumberFormatException e) {
+                production.setStatut("ERREUR");
+                production.setMessageErreur("Valeurs numériques invalides");
+            } catch (Exception e) {
+                production.setStatut("ERREUR");
+                production.setMessageErreur("Erreur lors de la mise à jour: " + e.getMessage());
+            }
+        }
+
+// Et aussi mettre à jour les listeners dans initComponents() :
+
+        private void initComponents() {
+            label = new Label("Production " + compteurProductions);
+            datePicker = new DatePicker();
+            timeField = new HourMinuteField();
+            entreeReelle = new TextField();
+            entreeReelle.setPromptText("Quantité entrée réelle");
+            sortie1Reelle = new TextField();
+            sortie1Reelle.setPromptText("Sortie 1 réelle");
+            sortie2Reelle = new TextField();
+            sortie2Reelle.setPromptText("Sortie 2 réelle");
+            resultatLabel = new Label();
+
+            // Listeners pour mettre à jour automatiquement le modèle
+            datePicker.valueProperty().addListener((obs, old, val) -> {
+                production.setDate(val);
+                mettreAJourProduction();
+            });
+
+            // Ajouter des listeners pour les champs de temps
+            // Vous pouvez ajouter des listeners sur les champs individuels de timeField si nécessaire
+
+            // Listeners pour les champs de texte
+            entreeReelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+            sortie1Reelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+            sortie2Reelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+        }
 
         VBox getVBox() {
             VBox vbox = new VBox(5);
@@ -56,159 +129,185 @@ public class TrackerController {
         }
     }
 
-    // Classe pour stocker les données d'une journée complète
-    private static class JourComplet {
-        LocalDate date;
-        List<ProductionFields> productions;
-        double perfGlobaleJour;
-        double totalEntreeJour;
-        double totalSortie1Jour;
-        double totalSortie2Jour;
+    @FXML
+    public void initialize() {
+        productionService = new ProductionService();
+        filtreActuel = FiltrePeriode.creerFiltreTout();
 
-        JourComplet(LocalDate date) {
-            this.date = date;
-            this.productions = new ArrayList<>();
-        }
+        // Configuration des filtres
+        btnAppliquerFiltre.setOnAction(e -> appliquerFiltre());
+        btnVoirTout.setOnAction(e -> voirTout());
+
+        // Dates par défaut
+        dateDebutFiltre.setValue(LocalDate.now().minusDays(7));
+        dateFinFiltre.setValue(LocalDate.now());
+
+        mettreAJourLabelFiltre();
     }
-
-    private final List<ProductionFields> productions = new ArrayList<>();
 
     @FXML
     public void ajouterJour() {
-        ProductionFields production = new ProductionFields();
-        production.datePicker = new DatePicker();
-        production.label = new Label("Production " + productionCounter);
-        production.timeField = new HourMinuteField();
-        production.entreeReelle = new TextField();
-        production.entreeReelle.setPromptText("Quantité entrée réelle");
-        production.sortie1Reelle = new TextField();
-        production.sortie1Reelle.setPromptText("Sortie 1 réelle");
-        production.sortie2Reelle = new TextField();
-        production.sortie2Reelle.setPromptText("Sortie 2 réelle");
-        production.resultatLabel = new Label();
+        Production production = new Production();
+        ProductionUI productionUI = new ProductionUI(production);
+        listeProductionUI.add(productionUI);
+        productionService.ajouterProduction(production);
+        joursContainer.getChildren().add(productionUI.getVBox());
 
-        productions.add(production);
-        joursContainer.getChildren().add(production.getVBox());
+        compteurProductions++;
 
-        productionCounter++;
-
-        if (productions.size() == 1) {
-            Button btnCalculer = new Button("Calculer les performances");
-            btnCalculer.setOnAction(e -> calculerToutesPerformances());
-            joursContainer.getChildren().add(btnCalculer);
+        // Ajouter le bouton de calcul si c'est la première production
+        if (compteurProductions == 2) {
+            ajouterBoutonCalculer();
         }
     }
 
-    public void calculerToutesPerformances() {
+    private void ajouterBoutonCalculer() {
+        Button btnCalculer = new Button("Calculer les performances");
+        btnCalculer.setOnAction(e -> calculerPerformances());
+        joursContainer.getChildren().add(btnCalculer);
+    }
+
+    @FXML
+    public void appliquerFiltre() {
+        LocalDate debut = dateDebutFiltre.getValue();
+        LocalDate fin = dateFinFiltre.getValue();
+
+        if (debut == null || fin == null) {
+            afficherErreur("Dates manquantes", "Veuillez sélectionner une date de début et une date de fin.");
+            return;
+        }
+
+        if (debut.isAfter(fin)) {
+            afficherErreur("Dates invalides", "La date de début doit être antérieure à la date de fin.");
+            return;
+        }
+
+        filtreActuel = FiltrePeriode.creerFiltrePersonnalise(debut, fin);
+        mettreAJourLabelFiltre();
+        calculerPerformances();
+    }
+
+    @FXML
+    public void voirTout() {
+        filtreActuel = FiltrePeriode.creerFiltreTout();
+        mettreAJourLabelFiltre();
+        calculerPerformances();
+    }
+
+    @FXML
+    public void filtrer7DerniersJours() {
+        filtreActuel = FiltrePeriode.creerFiltreSeptJours();
+        mettreAJourLabelFiltre();
+        calculerPerformances();
+    }
+
+    @FXML
+    public void filtrerSemaineCourante() {
+        filtreActuel = FiltrePeriode.creerFiltreSemaineCourante();
+        mettreAJourLabelFiltre();
+        calculerPerformances();
+    }
+
+    @FXML
+    public void filtrerMoisCourant() {
+        filtreActuel = FiltrePeriode.creerFiltreMoisCourant();
+        mettreAJourLabelFiltre();
+        calculerPerformances();
+    }
+
+    private void calculerPerformances() {
+        // Créer le modèle idéal
+        ModeleIdeal modele = creerModeleIdeal();
+        if (modele == null) return;
+
+        productionService.setModeleIdeal(modele);
+
+        // Obtenir les productions filtrées
+        List<Production> productionsFiltrees = productionService.getProductionsFiltrees(
+                filtreActuel.getDateDebut(),
+                filtreActuel.getDateFin()
+        );
+
+        // Grouper par jour
+        Map<LocalDate, JourneeProduction> journees = productionService.grouperParJour(productionsFiltrees);
+
+        // Calculer les statistiques
+        StatistiquesService.StatistiquesResume stats = StatistiquesService.calculerStatistiques(journees, modele);
+
+        // Afficher les résultats
+        afficherStatistiques(stats);
+        mettreAJourAffichageProductions(journees);
+    }
+
+    private ModeleIdeal creerModeleIdeal() {
         try {
-            double qteIdeale = Double.parseDouble(quantiteEntreeIdealeField.getText());
-            double sortie1Ideale = Double.parseDouble(sortie1IdealeField.getText());
-            double sortie2Ideale = Double.parseDouble(sortie2IdealeField.getText());
+            String nom = matierePremiereField.getText();
+            double entree = Double.parseDouble(quantiteEntreeIdealeField.getText());
+            double sortie1 = Double.parseDouble(sortie1IdealeField.getText());
+            double sortie2 = Double.parseDouble(sortie2IdealeField.getText());
 
-            // Regrouper les productions par date
-            Map<LocalDate, JourComplet> joursMap = new HashMap<>();
-
-            for (ProductionFields production : productions) {
-                LocalDate date = production.datePicker.getValue();
-                if (date == null) {
-                    production.resultatLabel.setText("⛔ Date manquante");
-                    production.resultatLabel.setTextFill(Color.RED);
-                    continue;
-                }
-
-                if (!production.timeField.isValidTime()) {
-                    production.resultatLabel.setText("⛔ Heure invalide (ex: 14:30)");
-                    production.resultatLabel.setTextFill(Color.RED);
-                    continue;
-                }
-
-                try {
-                    double qteReelle = Double.parseDouble(production.entreeReelle.getText());
-                    double sortie1Reelle = Double.parseDouble(production.sortie1Reelle.getText());
-                    double sortie2Reelle = Double.parseDouble(production.sortie2Reelle.getText());
-
-                    // Ajouter cette production au jour correspondant
-                    JourComplet jour = joursMap.computeIfAbsent(date, JourComplet::new);
-                    jour.productions.add(production);
-                    jour.totalEntreeJour += qteReelle;
-                    jour.totalSortie1Jour += sortie1Reelle;
-                    jour.totalSortie2Jour += sortie2Reelle;
-
-                } catch (NumberFormatException e) {
-                    production.resultatLabel.setText("⛔ Valeurs numériques invalides");
-                    production.resultatLabel.setTextFill(Color.RED);
-                }
-            }
-
-            // Calculer les performances pour chaque jour
-            double sommePerfJours = 0;
-            double maxPerfJour = Double.MIN_VALUE;
-            double minPerfJour = Double.MAX_VALUE;
-            LocalDate jourMax = null;
-            LocalDate jourMin = null;
-            int joursValides = 0;
-
-            for (JourComplet jour : joursMap.values()) {
-                if (jour.productions.isEmpty()) continue;
-
-                // Calculer la performance idéale pour ce jour
-                double sortie1IdealeJour = (jour.totalEntreeJour * sortie1Ideale) / qteIdeale;
-                double sortie2IdealeJour = (jour.totalEntreeJour * sortie2Ideale) / qteIdeale;
-                double totalIdealeJour = sortie1IdealeJour + sortie2IdealeJour;
-                double totalReelJour = jour.totalSortie1Jour + jour.totalSortie2Jour;
-
-                jour.perfGlobaleJour = (totalReelJour / totalIdealeJour) * 100;
-
-                // Mettre à jour les labels de chaque production de ce jour
-                for (ProductionFields production : jour.productions) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(String.format("📅 %s\n", jour.date.toString()));
-                    sb.append(String.format("🏭 Total jour: %.2fkg entrée\n", jour.totalEntreeJour));
-                    sb.append(String.format("📦 S1: %.2fkg | S2: %.2fkg\n", jour.totalSortie1Jour, jour.totalSortie2Jour));
-                    sb.append(String.format("⚡ Performance jour: %.1f%%", jour.perfGlobaleJour));
-
-                    production.resultatLabel.setText(sb.toString());
-                    production.resultatLabel.setTextFill(jour.perfGlobaleJour < 100 ? Color.RED :
-                            (jour.perfGlobaleJour > 100 ? Color.GREEN : Color.GRAY));
-                }
-
-                // Statistiques globales
-                sommePerfJours += jour.perfGlobaleJour;
-                joursValides++;
-
-                if (jour.perfGlobaleJour > maxPerfJour) {
-                    maxPerfJour = jour.perfGlobaleJour;
-                    jourMax = jour.date;
-                }
-                if (jour.perfGlobaleJour < minPerfJour) {
-                    minPerfJour = jour.perfGlobaleJour;
-                    jourMin = jour.date;
-                }
-            }
-
-            if (joursValides > 0) {
-                double moyenneJours = sommePerfJours / joursValides;
-
-                labelMeilleurePerf.setText(String.format("📈 Meilleur jour : %s → %.1f%%",
-                        jourMax != null ? jourMax.toString() : "N/A", maxPerfJour));
-                labelPlusGrossePerte.setText(String.format("📉 Plus grosse perte : %s → %.1f%%",
-                        jourMin != null ? jourMin.toString() : "N/A", minPerfJour));
-                labelMoyenneGlobale.setText(String.format("📊 Moyenne performance : %.1f%% (%d jours)",
-                        moyenneJours, joursValides));
-            }
-
+            return new ModeleIdeal(nom, entree, sortie1, sortie2);
         } catch (NumberFormatException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setHeaderText("Erreur de saisie");
-            alert.setContentText("Veuillez entrer uniquement des nombres valides dans les champs idéaux.");
-            alert.show();
+            afficherErreur("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour le modèle idéal.");
+            return null;
         }
     }
 
-    // Méthode pour ajouter un separateur visuel entre les jours
-    private void ajouterSeparateurJour() {
-        Separator sep = new Separator();
-        sep.setStyle("-fx-background-color: blue; -fx-border-width: 2;");
-        joursContainer.getChildren().add(sep);
+    private void afficherStatistiques(StatistiquesService.StatistiquesResume stats) {
+        labelMeilleurePerf.setText(String.format("📈 Meilleur jour : %s → %.1f%%",
+                stats.getJourMeilleur() != null ? stats.getJourMeilleur().toString() : "N/A",
+                stats.getPerformanceMax()));
+
+        labelPlusGrossePerte.setText(String.format("📉 Plus grosse perte : %s → %.1f%%",
+                stats.getJourPire() != null ? stats.getJourPire().toString() : "N/A",
+                stats.getPerformanceMin()));
+
+        labelMoyenneGlobale.setText(String.format("📊 Période: %.1f%% | Moyenne: %.1f%% (%d jours)",
+                stats.getPerformanceGlobalePeriode(), stats.getPerformanceMoyenne(), stats.getNombreJours()));
+    }
+
+    private void mettreAJourAffichageProductions(Map<LocalDate, JourneeProduction> journees) {
+        // Parcourir tous les ProductionUI
+        for (ProductionUI productionUI : listeProductionUI) {
+            if (productionUI.production != null) {
+                LocalDate dateProduction = productionUI.production.getDate();
+
+                if (dateProduction != null && journees.containsKey(dateProduction)) {
+                    JourneeProduction journee = journees.get(dateProduction);
+
+                    // Créer le texte d'affichage
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(String.format("📅 %s\n", dateProduction.toString()));
+                    sb.append(String.format("🏭 Total jour: %.2fkg entrée\n", journee.getTotalEntreeJour()));
+                    sb.append(String.format("📦 S1: %.2fkg | S2: %.2fkg\n",
+                            journee.getTotalSortie1Jour(), journee.getTotalSortie2Jour()));
+                    sb.append(String.format("⚡ Performance jour: %.1f%%", journee.getPerformanceJour()));
+
+                    productionUI.resultatLabel.setText(sb.toString());
+
+                    // Couleur selon la performance
+                    double performance = journee.getPerformanceJour();
+                    Color couleur = performance < 100 ? Color.RED :
+                            (performance > 100 ? Color.GREEN : Color.GRAY);
+                    productionUI.resultatLabel.setTextFill(couleur);
+
+                } else {
+                    // Si pas de données pour cette date
+                    productionUI.resultatLabel.setText("⛔ Pas de données pour cette date");
+                    productionUI.resultatLabel.setTextFill(Color.RED);
+                }
+            }
+        }
+    }
+
+    private void mettreAJourLabelFiltre() {
+        labelFiltrageActuel.setText("📅 " + filtreActuel.getNom());
+    }
+
+    private void afficherErreur(String titre, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText(titre);
+        alert.setContentText(message);
+        alert.show();
     }
 }
