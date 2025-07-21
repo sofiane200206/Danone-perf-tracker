@@ -157,16 +157,10 @@ public class TrackerController {
                     try {
                         // Distinguer entre création et mise à jour
                         if (production.getId() == null) {
-                            // Nouvelle production - la créer
                             productionService.ajouterProduction(production);
-                            // Générer un ID temporaire si pas encore fait
-                            if (production.getId() == null) {
-                                production.setId(compteurIdProduction++);
-                            }
                             resultatLabel.setText("✅ Production créée - ID: " + production.getId());
                         } else {
-                            // Production existante - la mettre à jour
-                            productionService.ajouterProduction(production); // ou mettreAJourProduction si elle existe
+                            productionService.mettreAJourProduction(production); // ← FIX
                             resultatLabel.setText("✅ Production mise à jour - ID: " + production.getId());
                         }
                         resultatLabel.setTextFill(Color.GREEN);
