@@ -225,7 +225,41 @@ public class MatierePremiereDAO {
             }
         }
     }
+    public void supprimerDefinitivement(Long id) throws SQLException {
+        String querySupprimerSorties = "DELETE FROM sorties_ideales WHERE matiere_premiere_id = ?";
+        String querySupprimerMatiere = "DELETE FROM matieres_premieres WHERE id = ?";
 
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
+
+            try {
+                // 1. Supprimer d'abord les sorties idéales (clés étrangères)
+                try (PreparedStatement stmt = conn.prepareStatement(querySupprimerSorties)) {
+                    stmt.setLong(1, id);
+                    stmt.executeUpdate();
+                }
+
+                // 2. Supprimer la matière première
+                try (PreparedStatement stmt = conn.prepareStatement(querySupprimerMatiere)) {
+                    stmt.setLong(1, id);
+                    int rowsAffected = stmt.executeUpdate();
+
+                    if (rowsAffected == 0) {
+                        throw new SQLException("Aucune matière première trouvée avec l'ID : " + id);
+                    }
+                }
+
+                conn.commit();
+                LOGGER.info("Matière première supprimée définitivement : ID " + id);
+
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
     private MatierePremiereModel mapResultSetToMatiere(ResultSet rs) throws SQLException {
         MatierePremiereModel matiere = new MatierePremiereModel();
         matiere.setId(rs.getLong("id"));

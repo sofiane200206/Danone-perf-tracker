@@ -59,6 +59,7 @@ public class TrackerController {
         Label resultatLabel;
         VBox container;
 
+
         ProductionUI(ProductionModel production) {
             this.production = production;
             this.sortiesReellesFields = new ArrayList<>();
@@ -119,17 +120,15 @@ public class TrackerController {
                     production.setDateProduction(datePicker.getValue());
                 }
 
-                // ✅ Corriger la mise à jour de l'heure
+                // Mettre à jour l'heure
                 try {
                     LocalTime localTime = timeField.getLocalTime();
                     if (localTime != null) {
                         production.setHeureProduction(localTime);
                     } else {
-                        // Mettre une heure par défaut si pas d'heure saisie
                         production.setHeureProduction(LocalTime.now());
                     }
                 } catch (Exception e) {
-                    // En cas d'erreur, utiliser l'heure actuelle
                     production.setHeureProduction(LocalTime.now());
                 }
 
@@ -150,24 +149,45 @@ public class TrackerController {
                     }
                 }
 
-                // ✅ Forcer la validation
+                // Valider la production
                 production.validerProduction();
 
-                // Affichage du statut
-                if (production.isValide()) {
-                    resultatLabel.setText("✅ Production validée - ID: " + production.getId());
-                    resultatLabel.setTextFill(Color.GREEN);
-                } else if (production.isDonneeComplete()) {
-                    production.setStatut("VALIDE"); // Forcer le statut si données complètes
-                    resultatLabel.setText("✅ Production validée - ID: " + production.getId());
-                    resultatLabel.setTextFill(Color.GREEN);
+                // Sauvegarder seulement si les données sont complètes
+                if (production.isDonneeComplete()) {
+                    try {
+                        // Distinguer entre création et mise à jour
+                        if (production.getId() == null) {
+                            // Nouvelle production - la créer
+                            productionService.ajouterProduction(production);
+                            // Générer un ID temporaire si pas encore fait
+                            if (production.getId() == null) {
+                                production.setId(compteurIdProduction++);
+                            }
+                            resultatLabel.setText("✅ Production créée - ID: " + production.getId());
+                        } else {
+                            // Production existante - la mettre à jour
+                            productionService.ajouterProduction(production); // ou mettreAJourProduction si elle existe
+                            resultatLabel.setText("✅ Production mise à jour - ID: " + production.getId());
+                        }
+                        resultatLabel.setTextFill(Color.GREEN);
+
+                    } catch (ServiceException e) {
+                        resultatLabel.setText("⚠️ Erreur sauvegarde: " + e.getMessage());
+                        resultatLabel.setTextFill(Color.RED);
+                        LOGGER.log(Level.WARNING, "Erreur lors de la sauvegarde", e);
+                    }
                 } else {
                     resultatLabel.setText("⏳ Production incomplète - Manque: " + getChampManquants());
                     resultatLabel.setTextFill(Color.ORANGE);
                 }
 
             } catch (NumberFormatException e) {
-                // ... reste du code d'erreur ...
+                resultatLabel.setText("❌ Erreur : valeurs numériques invalides");
+                resultatLabel.setTextFill(Color.RED);
+            } catch (Exception e) {
+                resultatLabel.setText("❌ Erreur inattendue : " + e.getMessage());
+                resultatLabel.setTextFill(Color.RED);
+                LOGGER.log(Level.SEVERE, "Erreur lors de la mise à jour de la production", e);
             }
         }
 
@@ -208,42 +228,80 @@ public class TrackerController {
         }
 
         private void supprimerProduction() {
-            listeProductionUI.remove(this);
-            productionService.supprimerProduction(production);
-            joursContainer.getChildren().remove(container);
-            calculerPerformances();
+            try {
+                // 1. D'abord, vérifier si la production a un ID (donc existe en base)
+                if (production.getId() != null) {
+                    // Supprimer d'abord de la base de données
+                    productionService.supprimerProduction(production);
+                    LOGGER.info("Production ID " + production.getId() + " supprimée de la base de données");
+                } else {
+                    LOGGER.info("Production sans ID, suppression uniquement de l'interface");
+                }
+
+                // 2. Supprimer de la liste UI et de l'interface (dans tous les cas)
+                listeProductionUI.remove(this);
+                joursContainer.getChildren().remove(container);
+
+                // 3. Recalculer les performances après suppression
+                calculerPerformances();
+
+                // 4. Mettre à jour le compteur si nécessaire
+                compteurProductions = Math.max(1, listeProductionUI.size() + 1);
+
+                // 5. Log de confirmation
+                LOGGER.info("Production supprimée avec succès. Reste " + listeProductionUI.size() + " productions");
+
+            } catch (ServiceException e) {
+                LOGGER.log(Level.WARNING, "Erreur lors de la suppression en base : " + e.getMessage(), e);
+
+                // Même en cas d'erreur de base, on supprime de l'interface
+                listeProductionUI.remove(this);
+                joursContainer.getChildren().remove(container);
+                calculerPerformances();
+
+                // Afficher l'erreur à l'utilisateur
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Avertissement");
+                alert.setHeaderText("Suppression partielle");
+                alert.setContentText("La production a été supprimée de l'interface mais une erreur s'est produite lors de la suppression en base : " + e.getMessage());
+                alert.showAndWait();
+
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Erreur inattendue lors de la suppression", e);
+
+                // En cas d'erreur grave, quand même essayer de nettoyer l'interface
+                try {
+                    listeProductionUI.remove(this);
+                    joursContainer.getChildren().remove(container);
+                } catch (Exception cleanupError) {
+                    LOGGER.log(Level.SEVERE, "Impossible de nettoyer l'interface", cleanupError);
+                }
+
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Erreur");
+                alert.setHeaderText("Erreur de suppression");
+                alert.setContentText("Une erreur grave s'est produite : " + e.getMessage());
+                alert.showAndWait();
+            }
+        }
+
+        public void mettreAJourAffichageStatut() {
+            if (production.getId() != null) {
+                if (production.isValide()) {
+                    resultatLabel.setText("✅ Production chargée - ID: " + production.getId() +
+                            " (Statut: " + production.getStatut() + ")");
+                    resultatLabel.setTextFill(Color.GREEN);
+                } else {
+                    resultatLabel.setText("⚠️ Production incomplète - ID: " + production.getId());
+                    resultatLabel.setTextFill(Color.ORANGE);
+                }
+            } else {
+                resultatLabel.setText("⏳ Nouvelle production - en attente de saisie...");
+                resultatLabel.setTextFill(Color.GRAY);
+            }
         }
         // Méthode de test temporaire
-        @FXML
-        public void testerDonneesFactices() {
-            if (matiereActuelle == null) {
-                // Créer une matière de test
-                MatierePremiereModel matiere = new MatierePremiereModel();
-                matiere.setId(1L);
-                matiere.setNom("Test Farine");
-                matiere.setQuantiteEntreeIdeale(10.0);
 
-                List<MatierePremiereModel.SortieIdeale> sorties = new ArrayList<>();
-                sorties.add(new MatierePremiereModel.SortieIdeale(1, 10.0, "Pain"));
-                matiere.setSortiesIdeales(sorties);
-
-                matiereActuelle = matiere;
-                productionService.setMatierePremiereModel(matiere);
-            }
-
-            // Créer une production de test
-            ProductionModel prod = new ProductionModel();
-            prod.setId(1L);
-            prod.setMatierePremiereId(matiereActuelle.getId());
-            prod.setDateProduction(LocalDate.now());
-            prod.setHeureProduction(LocalTime.now());
-            prod.setQuantiteEntreeReelle(10.0);
-            prod.ajouterSortieReelle(1, 10.0);
-            prod.setStatut("VALIDE");
-
-            productionService.ajouterProduction(prod);
-            calculerPerformances();
-        }
         public void actualiserAffichage() {
             // Recréer les champs si la matière première a changé
             if (container != null) {
@@ -381,7 +439,7 @@ public class TrackerController {
             double quantiteEntreeIdeale = Double.parseDouble(entreeText);
             int nombreSorties = nombreSortiesSpinner.getValue();
 
-            // Créer les sorties idéales
+            // ✅ CORRECTION : Créer d'abord TOUTES les sorties idéales
             List<SortieIdeale> sortiesIdeales = new ArrayList<>();
             for (int i = 0; i < nombreSorties; i++) {
                 String quantiteText = champsSortiesIdeales.get(i * 2).getText().trim();
@@ -391,20 +449,19 @@ public class TrackerController {
                     afficherErreur("Sortie manquante", "Veuillez saisir la quantité pour la sortie " + (i + 1));
                     return;
                 }
-                MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
-                        nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
 
-                // ✅ S'assurer que la matière a un ID
-                if (matiere.getId() == null) {
-                    matiere.setId(compteurIdMatiere++);
-                }
                 double quantite = Double.parseDouble(quantiteText);
                 sortiesIdeales.add(new SortieIdeale(i + 1, quantite, nomSortie.isEmpty() ? "Sortie " + (i + 1) : nomSortie));
             }
 
-            // Créer la matière première
+            // ✅ Maintenant créer la matière première avec TOUTES les sorties
             MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
                     nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
+
+            // ✅ S'assurer que la matière a un ID
+            if (matiere.getId() == null) {
+                matiere.setId(compteurIdMatiere++);
+            }
 
             // Actualiser la liste et sélectionner la nouvelle matière
             chargerMatieresPremieres();
@@ -441,7 +498,7 @@ public class TrackerController {
         productionService.setMatierePremiereModel(matiere);
 
         labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
-
+        chargerProductionsExistantes();
         // Actualiser toutes les productions existantes
         for (ProductionUI productionUI : listeProductionUI) {
             productionUI.production.setMatierePremiereId(matiere.getId());
@@ -449,6 +506,98 @@ public class TrackerController {
         }
 
         calculerPerformances();
+    }
+    private void chargerProductionsExistantes() {
+        try {
+            // VIDER TOUT D'ABORD (fix du bug principal)
+            viderAffichageProductions();
+
+            // Récupérer les productions de cette matière première
+            List<ProductionModel> productionsBDD = productionService.getProductions();
+
+            LOGGER.info("Chargement de " + productionsBDD.size() + " productions depuis la base");
+
+            // Créer les UI pour chaque production existante
+            for (ProductionModel production : productionsBDD) {
+                creerUIProduction(production);
+            }
+
+            // Mettre à jour le compteur
+            compteurProductions = listeProductionUI.size() + 1;
+
+            // Ajouter le bouton calculer si nécessaire
+            if (listeProductionUI.size() >= 1 && !boutonCalculerExiste()) {
+                ajouterBoutonCalculer();
+            }
+
+            LOGGER.info("Interface mise à jour avec " + listeProductionUI.size() + " productions");
+
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du chargement des productions existantes", e);
+            afficherErreur("Erreur de chargement",
+                    "Impossible de charger les productions existantes : " + e.getMessage());
+        }
+    }
+    private void creerUIProduction(ProductionModel production) {
+        ProductionUI productionUI = new ProductionUI(production);
+
+        // Remplir les champs avec les données existantes
+        if (production.getDateProduction() != null) {
+            productionUI.datePicker.setValue(production.getDateProduction());
+        }
+
+        if (production.getHeureProduction() != null) {
+            productionUI.timeField.setTime(production.getHeureProduction());
+        }
+
+        if (production.getQuantiteEntreeReelle() > 0) {
+            productionUI.entreeReelle.setText(String.valueOf(production.getQuantiteEntreeReelle()));
+        }
+
+        // Remplir les sorties réelles
+        if (production.getSortiesReelles() != null) {
+            for (ProductionModel.SortieReelle sortieReelle : production.getSortiesReelles()) {
+                int index = sortieReelle.getNumeroSortie() - 1;
+                if (index >= 0 && index < productionUI.sortiesReellesFields.size()) {
+                    productionUI.sortiesReellesFields.get(index)
+                            .setText(String.valueOf(sortieReelle.getQuantiteReelle()));
+                }
+            }
+        }
+
+        // Mettre à jour le label avec le statut
+        productionUI.mettreAJourAffichageStatut();
+
+        // Ajouter à la liste et à l'interface
+        listeProductionUI.add(productionUI);
+
+        // Insérer avant le bouton d'ajout (qui est toujours en dernier)
+        int indexInsertion = joursContainer.getChildren().size() - 1;
+        if (indexInsertion < 0) indexInsertion = 0;
+
+        joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());
+    }
+    private void viderAffichageProductions() {
+        // Conserver seulement le bouton d'ajout production qui doit rester en dernier
+        if (!joursContainer.getChildren().isEmpty()) {
+            // Sauvegarder le dernier élément (bouton d'ajout) et le bouton calculer si il existe
+            int taille = joursContainer.getChildren().size();
+            var dernierElement = joursContainer.getChildren().get(taille - 1);
+
+            boolean avaitBoutonCalculer = boutonCalculerExiste();
+            var boutonCalculer = avaitBoutonCalculer ?
+                    joursContainer.getChildren().get(taille - 2) : null;
+
+            // Vider tout
+            joursContainer.getChildren().clear();
+            listeProductionUI.clear();
+
+            // Remettre les boutons
+            if (avaitBoutonCalculer && boutonCalculer != null) {
+                joursContainer.getChildren().add(boutonCalculer);
+            }
+            joursContainer.getChildren().add(dernierElement);
+        }
     }
 
     @FXML
@@ -458,22 +607,38 @@ public class TrackerController {
             return;
         }
 
-        ProductionModel production = new ProductionModel();
-        production.setId(compteurIdProduction++); // ✅ Générer un ID
-        production.setMatierePremiereId(matiereActuelle.getId());
-        production.setDateProduction(LocalDate.now());
+        try {
+            ProductionModel production = new ProductionModel();
+            // Ne pas assigner d'ID ici - il sera généré par la base de données
+            production.setMatierePremiereId(matiereActuelle.getId());
+            production.setDateProduction(LocalDate.now());
 
-        ProductionUI productionUI = new ProductionUI(production);
-        listeProductionUI.add(productionUI);
-        productionService.ajouterProduction(production);
+            ProductionUI productionUI = new ProductionUI(production);
+            listeProductionUI.add(productionUI);
 
-        joursContainer.getChildren().add(joursContainer.getChildren().size() - 1, productionUI.getContainer());
+            // Insérer avant les boutons (ajout et calculer)
+            int indexInsertion = joursContainer.getChildren().size() - 1;
+            if (boutonCalculerExiste()) {
+                indexInsertion = joursContainer.getChildren().size() - 2;
+            }
 
-        compteurProductions++;
+            joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());
 
-        if (compteurProductions == 2) {
-            ajouterBoutonCalculer();
+            compteurProductions++;
+
+            if (compteurProductions == 2 && !boutonCalculerExiste()) {
+                ajouterBoutonCalculer();
+            }
+
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de l'ajout de production", e);
+            afficherErreur("Erreur", "Impossible d'ajouter la production : " + e.getMessage());
         }
+    }
+    private boolean boutonCalculerExiste() {
+        return joursContainer.getChildren().stream()
+                .anyMatch(node -> node instanceof Button &&
+                        ((Button) node).getText().contains("Calculer les performances"));
     }
 
     private void ajouterBoutonCalculer() {
@@ -643,6 +808,105 @@ public class TrackerController {
                     productionUI.resultatLabel.setTextFill(Color.GRAY);
                 }
             }
+        }
+    }
+    @FXML
+    public void supprimerMatiereActuelle() {
+        if (matiereActuelle == null) {
+            afficherErreur("Aucune sélection", "Veuillez d'abord sélectionner une matière première à supprimer.");
+            return;
+        }
+
+        try {
+            // Compter les productions associées
+            int nbProductions = matiereService.compterProductionsAssociees(matiereActuelle.getId());
+
+            // Créer le message de confirmation
+            String message = "Êtes-vous sûr de vouloir supprimer la matière première '" +
+                    matiereActuelle.getNom() + "' ?";
+
+            if (nbProductions > 0) {
+                message += "\n\n⚠️ ATTENTION : Cette action supprimera également " +
+                        nbProductions + " production(s) associée(s) !";
+            }
+
+            message += "\n\nCette action est irréversible.";
+
+            // Demander confirmation
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Confirmation de suppression");
+            confirmation.setHeaderText("Supprimer la matière première");
+            confirmation.setContentText(message);
+
+            Optional<ButtonType> resultat = confirmation.showAndWait();
+
+            if (resultat.isPresent() && resultat.get() == ButtonType.OK) {
+                // Supprimer avec cascade
+                matiereService.supprimerAvecConfirmation(matiereActuelle.getId(), true);
+
+                // Nettoyer l'interface
+                matiereActuelle = null;
+                productionService.setMatierePremiereModel(null);
+                labelMatiereSelectionnee.setText("📦 Aucune matière sélectionnée");
+
+                // Vider l'affichage des productions
+                viderAffichageProductions();
+                listeProductionUI.clear();
+
+                // Vider les statistiques
+                labelMeilleurePerf.setText("📈 Meilleur jour : N/A");
+                labelPlusGrossePerte.setText("📉 Plus grosse perte : N/A");
+                labelMoyenneGlobale.setText("📊 Moyenne globale : N/A");
+
+                // Recharger la liste des matières premières
+                chargerMatieresPremieres();
+
+                afficherInfo("Suppression réussie",
+                        "La matière première '" + matiereActuelle + "' et ses " +
+                                nbProductions + " production(s) ont été supprimées avec succès.");
+
+            } else {
+                LOGGER.info("Suppression annulée par l'utilisateur");
+            }
+
+        } catch (ServiceException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de la suppression de la matière première", e);
+            afficherErreur("Erreur de suppression",
+                    "Impossible de supprimer la matière première : " + e.getMessage());
+        }
+    }
+    public void supprimerMatiere(MatierePremiereModel matiere) {
+        if (matiere == null) {
+            return;
+        }
+
+        // Si c'est la matière actuelle, utiliser la méthode principale
+        if (matiere.equals(matiereActuelle)) {
+            supprimerMatiereActuelle();
+            return;
+        }
+
+        // Sinon, suppression directe
+        try {
+            int nbProductions = matiereService.compterProductionsAssociees(matiere.getId());
+
+            String message = "Supprimer '" + matiere.getNom() + "' ?";
+            if (nbProductions > 0) {
+                message += "\n⚠️ " + nbProductions + " production(s) seront aussi supprimées !";
+            }
+
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setContentText(message);
+
+            Optional<ButtonType> resultat = confirmation.showAndWait();
+            if (resultat.isPresent() && resultat.get() == ButtonType.OK) {
+                matiereService.supprimerDefinitivement(matiere.getId());
+                chargerMatieresPremieres(); // Recharger la liste
+                afficherInfo("Supprimé", "Matière première supprimée avec succès.");
+            }
+
+        } catch (ServiceException e) {
+            afficherErreur("Erreur", "Impossible de supprimer : " + e.getMessage());
         }
     }
 

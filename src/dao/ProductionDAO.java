@@ -284,6 +284,22 @@ public class ProductionDAO {
             }
         }
     }
+    public int compterParMatiereId(Long matiereId) throws SQLException {
+        String query = "SELECT COUNT(*) FROM productions WHERE matiere_premiere_id = ?";
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setLong(1, matiereId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
 
     private ProductionModel mapResultSetToProduction(ResultSet rs) throws SQLException {
         ProductionModel production = new ProductionModel();

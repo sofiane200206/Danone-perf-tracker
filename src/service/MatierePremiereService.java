@@ -122,7 +122,60 @@ public class MatierePremiereService {
             throw new ServiceException("Erreur lors de la recherche : " + e.getMessage(), e);
         }
     }
+    public void supprimerDefinitivement(Long id) throws ServiceException {
+        try {
+            if (id == null) {
+                throw new ServiceException("L'ID de la matière première ne peut pas être null");
+            }
 
+            // Récupérer la matière première pour avoir son nom (pour les logs)
+            MatierePremiereModel matiere = matiereDAO.trouverParId(id);
+            if (matiere == null) {
+                throw new ServiceException("Matière première introuvable avec l'ID : " + id);
+            }
+
+            // 1. Supprimer toutes les productions liées (CASCADE)
+            ProductionService productionService = new ProductionService();
+            int nbProductionsSupprimees = productionService.supprimerToutesProductionsMatiere(id);
+
+            // 2. Supprimer la matière première
+            matiereDAO.supprimerDefinitivement(id);
+
+            LOGGER.info("Matière première '" + matiere.getNom() + "' supprimée définitivement avec "
+                    + nbProductionsSupprimees + " productions associées");
+
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de la suppression définitive de la matière première", e);
+            throw new ServiceException("Erreur lors de la suppression : " + e.getMessage(), e);
+        }
+    }
+    public void supprimerAvecConfirmation(Long id, boolean confirmationUtilisateur) throws ServiceException {
+        if (!confirmationUtilisateur) {
+            throw new ServiceException("Suppression annulée par l'utilisateur");
+        }
+
+        // Compter les productions associées pour informer l'utilisateur
+        int nbProductions = compterProductionsAssociees(id);
+        if (nbProductions > 0) {
+            LOGGER.warning("Attention : " + nbProductions + " productions seront supprimées");
+        }
+
+        supprimerDefinitivement(id);
+    }
+    public int compterProductionsAssociees(Long matiereId) throws ServiceException {
+        try {
+            if (matiereId == null) {
+                return 0;
+            }
+
+            ProductionService productionService = new ProductionService();
+            return productionService.compterProductionsParMatiere(matiereId);
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Erreur lors du comptage des productions associées", e);
+            return 0; // En cas d'erreur, on retourne 0 pour ne pas bloquer
+        }
+    }
     /**
      * Met à jour une matière première existante
      */

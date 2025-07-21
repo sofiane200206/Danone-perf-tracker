@@ -67,6 +67,13 @@
 
                     <ComboBox fx:id="matierePremiereCombo" maxWidth="Infinity" promptText="Sélectionnez une matière première..." />
                     <Label fx:id="labelMatiereSelectionnee" text="📦 Aucune matière sélectionnée" textFill="#666666" wrapText="true" />
+                    <HBox spacing="10.0" alignment="CENTER_LEFT">
+
+
+                        <Button fx:id="btnSupprimerMatiere" mnemonicParsing="false" text="🗑️ Supprimer"
+                                style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;"
+                                onAction="#supprimerMatiereActuelle" />
+                    </HBox>
                 </VBox>
 
                 <!-- Statistiques -->
