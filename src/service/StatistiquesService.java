@@ -41,7 +41,69 @@ public class StatistiquesService {
         public void setPerformanceGlobalePeriode(double performance) { this.performanceGlobalePeriode = performance; }
     }
 
-    public static StatistiquesResume calculerStatistiques(Map<LocalDate, JourneeProduction> journees, ModeleIdeal modele) {
+    /**
+     * Calcule les statistiques basées sur le nouveau système avec MatierePremiereModel
+     */
+    public static StatistiquesResume calculerStatistiques(Map<LocalDate, JourneeProduction> journees, MatierePremiereModel matiere) {
+        StatistiquesResume stats = new StatistiquesResume();
+
+        if (journees.isEmpty() || matiere == null || !matiere.isValide()) {
+            return stats;
+        }
+
+        double sommePerformances = 0;
+        double performanceMax = Double.MIN_VALUE;
+        double performanceMin = Double.MAX_VALUE;
+        LocalDate jourMax = null;
+        LocalDate jourMin = null;
+
+        // Totaux pour la période
+        double totalEntreePeriode = 0;
+        double totalSortiesPeriode = 0;
+
+        for (JourneeProduction journee : journees.values()) {
+            double perf = journee.getPerformanceJour();
+            sommePerformances += perf;
+
+            totalEntreePeriode += journee.getTotalEntreeJour();
+            totalSortiesPeriode += journee.getTotalSortiesJour();
+
+            if (perf > performanceMax) {
+                performanceMax = perf;
+                jourMax = journee.getDate();
+            }
+            if (perf < performanceMin) {
+                performanceMin = perf;
+                jourMin = journee.getDate();
+            }
+        }
+
+        int nombreJours = journees.size();
+
+        // Calcul performance globale de la période avec le nouveau système
+        double ratioProduction = totalEntreePeriode / matiere.getQuantiteEntreeIdeale();
+        double totalSortiesIdealesPeriode = ratioProduction * matiere.getTotalSortiesIdeales();
+
+        double performanceGlobale = totalSortiesIdealesPeriode > 0 ?
+                (totalSortiesPeriode / totalSortiesIdealesPeriode) * 100 : 0;
+
+        stats.setPerformanceMoyenne(sommePerformances / nombreJours);
+        stats.setPerformanceMax(performanceMax);
+        stats.setPerformanceMin(performanceMin);
+        stats.setJourMeilleur(jourMax);
+        stats.setJourPire(jourMin);
+        stats.setNombreJours(nombreJours);
+        stats.setPerformanceGlobalePeriode(performanceGlobale);
+
+        return stats;
+    }
+
+    /**
+     * Version de compatibilité avec l'ancien système ModeleIdeal (deprecated)
+     * Utilise les méthodes dépréciées de JourneeProduction pour maintenir la compatibilité
+     */
+    @Deprecated
+    public static StatistiquesResume calculerStatistiquesLegacy(Map<LocalDate, JourneeProduction> journees, ModeleIdeal modele) {
         StatistiquesResume stats = new StatistiquesResume();
 
         if (journees.isEmpty() || modele == null || !modele.isValide()) {
@@ -60,12 +122,12 @@ public class StatistiquesService {
         double totalSortie2Periode = 0;
 
         for (JourneeProduction journee : journees.values()) {
+            //journee.calculerPerformance(matiere);
             double perf = journee.getPerformanceJour();
             sommePerformances += perf;
 
             totalEntreePeriode += journee.getTotalEntreeJour();
-            totalSortie1Periode += journee.getTotalSortie1Jour();
-            totalSortie2Periode += journee.getTotalSortie2Jour();
+             // Méthode dépréciée
 
             if (perf > performanceMax) {
                 performanceMax = perf;
@@ -79,7 +141,7 @@ public class StatistiquesService {
 
         int nombreJours = journees.size();
 
-        // Calcul performance globale de la période
+        // Calcul performance globale de la période (ancien système)
         double sortie1IdealePeriode = (totalEntreePeriode * modele.getSortie1Ideale()) / modele.getQuantiteEntreeIdeale();
         double sortie2IdealePeriode = (totalEntreePeriode * modele.getSortie2Ideale()) / modele.getQuantiteEntreeIdeale();
         double totalIdealePeriode = sortie1IdealePeriode + sortie2IdealePeriode;
@@ -96,5 +158,20 @@ public class StatistiquesService {
 
         return stats;
     }
-}
 
+    /**
+     * Méthode utilitaire pour calculer des statistiques par sortie spécifique
+     */
+    public static Map<Integer, Double> calculerTotauxParSortie(Map<LocalDate, JourneeProduction> journees, List<Integer> numerosSorties) {
+        Map<Integer, Double> totaux = new HashMap<>();
+
+        for (Integer numeroSortie : numerosSorties) {
+            double total = journees.values().stream()
+                    .mapToDouble(journee -> journee.getTotalSortieParNumero(numeroSortie))
+                    .sum();
+            totaux.put(numeroSortie, total);
+        }
+
+        return totaux;
+    }
+}

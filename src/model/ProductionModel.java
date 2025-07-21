@@ -168,52 +168,10 @@ public class ProductionModel {
     }
 
     // Conversion vers l'ancien modèle Production pour compatibilité
-    public Production toProduction() {
-        Production production = new Production();
-        production.setDate(this.dateProduction);
-        production.setHeure(this.heureProduction);
-        production.setQuantiteEntreeReelle(this.quantiteEntreeReelle);
-        production.setStatut(this.statut);
-        production.setMessageErreur(this.messageErreur);
 
-        // Pour la compatibilité avec l'ancien système (2 sorties max)
-        if (sortiesReelles.size() >= 1) {
-            SortieReelle sortie1 = getSortieReelle(1);
-            if (sortie1 != null) {
-                production.setSortie1Reelle(sortie1.getQuantiteReelle());
-            }
-        }
-
-        if (sortiesReelles.size() >= 2) {
-            SortieReelle sortie2 = getSortieReelle(2);
-            if (sortie2 != null) {
-                production.setSortie2Reelle(sortie2.getQuantiteReelle());
-            }
-        }
-
-        return production;
-    }
 
     // Création à partir de l'ancien modèle Production
-    public static ProductionModel fromProduction(Production production, Long matierePremiereId) {
-        ProductionModel productionModel = new ProductionModel();
-        productionModel.setMatierePremiereId(matierePremiereId);
-        productionModel.setDateProduction(production.getDate());
-        productionModel.setHeureProduction(production.getHeure());
-        productionModel.setQuantiteEntreeReelle(production.getQuantiteEntreeReelle());
-        productionModel.setStatut(production.getStatut());
-        productionModel.setMessageErreur(production.getMessageErreur());
 
-        // Ajouter les sorties (pour compatibilité avec l'ancien système)
-        if (production.getSortie1Reelle() >= 0) {
-            productionModel.ajouterSortieReelle(1, production.getSortie1Reelle());
-        }
-        if (production.getSortie2Reelle() >= 0) {
-            productionModel.ajouterSortieReelle(2, production.getSortie2Reelle());
-        }
-
-        return productionModel;
-    }
 
     // Méthodes utilitaires
     @Override

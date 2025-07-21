@@ -6,21 +6,27 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import model.*;
+import model.MatierePremiereModel.SortieIdeale;
+import model.ProductionModel.SortieReelle;
 import service.*;
 import filter.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public class TrackerController {
+    private static final Logger LOGGER = Logger.getLogger(TrackerController.class.getName());
 
     // Composants FXML
     @FXML private TextField matierePremiereField;
     @FXML private TextField quantiteEntreeIdealeField;
-    @FXML private TextField sortie1IdealeField;
-    @FXML private TextField sortie2IdealeField;
+    @FXML private VBox sortiesIdealesContainer;
+    @FXML private Spinner<Integer> nombreSortiesSpinner;
+    @FXML private Button btnCreerMatiere;
+    @FXML private ComboBox<MatierePremiereModel> matierePremiereCombo;
     @FXML private Label labelMeilleurePerf;
     @FXML private Label labelPlusGrossePerte;
     @FXML private Label labelMoyenneGlobale;
@@ -30,128 +36,388 @@ public class TrackerController {
     @FXML private Button btnAppliquerFiltre;
     @FXML private Button btnVoirTout;
     @FXML private Label labelFiltrageActuel;
+    @FXML private Label labelMatiereSelectionnee;
 
     // Services
+    private MatierePremiereService matiereService;
     private ProductionService productionService;
     private FiltrePeriode filtreActuel;
+    private MatierePremiereModel matiereActuelle;
     private int compteurProductions = 1;
-    private List<ProductionUI> listeProductionUI = new java.util.ArrayList<>();
+    private List<ProductionUI> listeProductionUI = new ArrayList<>();
+    private List<TextField> champsSortiesIdeales = new ArrayList<>();
 
     // Composants UI pour les productions
     private class ProductionUI {
-        Production production;
+        ProductionModel production;
         Label label;
         DatePicker datePicker;
         HourMinuteField timeField;
         TextField entreeReelle;
-        TextField sortie1Reelle;
-        TextField sortie2Reelle;
+        List<TextField> sortiesReellesFields;
         Label resultatLabel;
+        VBox container;
 
-        ProductionUI(Production production) {
+        ProductionUI(ProductionModel production) {
             this.production = production;
+            this.sortiesReellesFields = new ArrayList<>();
             initComponents();
         }
 
+        private void initComponents() {
+            label = new Label("Production " + compteurProductions);
+            label.setStyle("-fx-font-weight: bold;");
 
+            datePicker = new DatePicker(LocalDate.now());
+            timeField = new HourMinuteField();
+
+            entreeReelle = new TextField();
+            entreeReelle.setPromptText("Quantité entrée réelle");
+
+            resultatLabel = new Label("⏳ En attente de saisie...");
+            resultatLabel.setWrapText(true);
+
+            // Créer les champs de sorties selon la matière première
+            creerChampsSorties();
+
+            // Listeners
+            setupListeners();
+        }
+
+        private void creerChampsSorties() {
+            sortiesReellesFields.clear();
+
+            if (matiereActuelle != null && matiereActuelle.getSortiesIdeales() != null) {
+                for (SortieIdeale sortieIdeale : matiereActuelle.getSortiesIdeales()) {
+                    TextField field = new TextField();
+                    field.setPromptText("Sortie " + sortieIdeale.getNumeroSortie() +
+                            " (" + sortieIdeale.getNomSortie() + ") - réelle");
+                    sortiesReellesFields.add(field);
+
+                    // Listener pour ce champ
+                    field.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+                }
+            }
+        }
+
+        private void setupListeners() {
+            datePicker.valueProperty().addListener((obs, old, val) -> {
+                if (val != null) {
+                    production.setDateProduction(val);
+                    mettreAJourProduction();
+                }
+            });
+
+            entreeReelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+        }
 
         private void mettreAJourProduction() {
             try {
-                // Validation et mise à jour du modèle
+                // Mettre à jour la date
+                if (datePicker.getValue() != null) {
+                    production.setDateProduction(datePicker.getValue());
+                }
+
+                // Mettre à jour l'heure
                 if (timeField.isValidTime()) {
                     LocalTime localTime = timeField.getLocalTime();
                     if (localTime != null) {
-                        production.setHeure(localTime);
+                        production.setHeureProduction(localTime);
                     }
                 }
 
-                if (!entreeReelle.getText().isEmpty()) {
-                    production.setQuantiteEntreeReelle(Double.parseDouble(entreeReelle.getText()));
+                // Mettre à jour l'entrée réelle
+                if (!entreeReelle.getText().trim().isEmpty()) {
+                    double entree = Double.parseDouble(entreeReelle.getText().trim());
+                    production.setQuantiteEntreeReelle(entree);
                 }
 
-                if (!sortie1Reelle.getText().isEmpty()) {
-                    production.setSortie1Reelle(Double.parseDouble(sortie1Reelle.getText()));
+                // Mettre à jour les sorties réelles
+                production.getSortiesReelles().clear();
+                for (int i = 0; i < sortiesReellesFields.size(); i++) {
+                    TextField field = sortiesReellesFields.get(i);
+                    if (!field.getText().trim().isEmpty()) {
+                        double quantite = Double.parseDouble(field.getText().trim());
+                        int numeroSortie = i + 1;
+                        production.ajouterSortieReelle(numeroSortie, quantite);
+                    }
                 }
 
-                if (!sortie2Reelle.getText().isEmpty()) {
-                    production.setSortie2Reelle(Double.parseDouble(sortie2Reelle.getText()));
+                // Valider la production
+                if (production.isDonneeComplete()) {
+                    production.setStatut("VALIDE");
+                    resultatLabel.setText("✅ Production validée");
+                    resultatLabel.setTextFill(Color.GREEN);
+                } else {
+                    production.setStatut("INCOMPLETE");
+                    resultatLabel.setText("⏳ Production incomplète");
+                    resultatLabel.setTextFill(Color.ORANGE);
                 }
-
-                production.setStatut("VALIDE");
 
             } catch (NumberFormatException e) {
                 production.setStatut("ERREUR");
                 production.setMessageErreur("Valeurs numériques invalides");
+                resultatLabel.setText("❌ Erreur: valeurs invalides");
+                resultatLabel.setTextFill(Color.RED);
             } catch (Exception e) {
                 production.setStatut("ERREUR");
-                production.setMessageErreur("Erreur lors de la mise à jour: " + e.getMessage());
+                production.setMessageErreur("Erreur: " + e.getMessage());
+                resultatLabel.setText("❌ Erreur: " + e.getMessage());
+                resultatLabel.setTextFill(Color.RED);
+                LOGGER.log(Level.WARNING, "Erreur lors de la mise à jour de la production", e);
             }
         }
 
-// Et aussi mettre à jour les listeners dans initComponents() :
+        VBox getContainer() {
+            if (container == null) {
+                container = new VBox(8);
+                container.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: #f9f9f9;");
 
-        private void initComponents() {
-            label = new Label("Production " + compteurProductions);
-            datePicker = new DatePicker();
-            timeField = new HourMinuteField();
-            entreeReelle = new TextField();
-            entreeReelle.setPromptText("Quantité entrée réelle");
-            sortie1Reelle = new TextField();
-            sortie1Reelle.setPromptText("Sortie 1 réelle");
-            sortie2Reelle = new TextField();
-            sortie2Reelle.setPromptText("Sortie 2 réelle");
-            resultatLabel = new Label();
+                HBox heureBox = new HBox(10);
+                heureBox.getChildren().addAll(new Label("Heure :"), timeField);
 
-            // Listeners pour mettre à jour automatiquement le modèle
-            datePicker.valueProperty().addListener((obs, old, val) -> {
-                production.setDate(val);
-                mettreAJourProduction();
-            });
+                container.getChildren().addAll(label, datePicker, heureBox, entreeReelle);
 
-            // Ajouter des listeners pour les champs de temps
-            // Vous pouvez ajouter des listeners sur les champs individuels de timeField si nécessaire
+                // Ajouter les champs de sorties
+                for (TextField field : sortiesReellesFields) {
+                    container.getChildren().add(field);
+                }
 
-            // Listeners pour les champs de texte
-            entreeReelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
-            sortie1Reelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
-            sortie2Reelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+                container.getChildren().add(resultatLabel);
+
+                // Bouton de suppression
+                Button btnSupprimer = new Button("🗑️ Supprimer");
+                btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
+                btnSupprimer.setOnAction(e -> supprimerProduction());
+                container.getChildren().add(btnSupprimer);
+            }
+            return container;
         }
 
-        VBox getVBox() {
-            VBox vbox = new VBox(5);
-            vbox.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-padding: 5;");
+        private void supprimerProduction() {
+            listeProductionUI.remove(this);
+            productionService.supprimerProduction(production);
+            joursContainer.getChildren().remove(container);
+            calculerPerformances();
+        }
 
-            HBox heureBox = new HBox(5);
-            heureBox.getChildren().addAll(new Label("Heure :"), timeField);
+        public void actualiserAffichage() {
+            // Recréer les champs si la matière première a changé
+            if (container != null) {
+                // Sauvegarder les valeurs actuelles
+                String entreeText = entreeReelle.getText();
+                List<String> sortiesTexts = new ArrayList<>();
+                for (TextField field : sortiesReellesFields) {
+                    sortiesTexts.add(field.getText());
+                }
 
-            vbox.getChildren().addAll(label, datePicker, heureBox, entreeReelle, sortie1Reelle, sortie2Reelle, resultatLabel);
-            return vbox;
+                // Recréer les champs
+                creerChampsSorties();
+
+                // Reconstruire le container
+                container.getChildren().clear();
+
+                Label titleLabel = new Label("Production " + (listeProductionUI.indexOf(this) + 1));
+                titleLabel.setStyle("-fx-font-weight: bold;");
+
+                HBox heureBox = new HBox(10);
+                heureBox.getChildren().addAll(new Label("Heure :"), timeField);
+
+                container.getChildren().addAll(titleLabel, datePicker, heureBox, entreeReelle);
+
+                for (TextField field : sortiesReellesFields) {
+                    container.getChildren().add(field);
+                }
+
+                container.getChildren().add(resultatLabel);
+
+                Button btnSupprimer = new Button("🗑️ Supprimer");
+                btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
+                btnSupprimer.setOnAction(e -> supprimerProduction());
+                container.getChildren().add(btnSupprimer);
+
+                // Restaurer les valeurs
+                entreeReelle.setText(entreeText);
+                for (int i = 0; i < Math.min(sortiesTexts.size(), sortiesReellesFields.size()); i++) {
+                    sortiesReellesFields.get(i).setText(sortiesTexts.get(i));
+                }
+
+                // Re-setup des listeners
+                setupListeners();
+            }
         }
     }
 
     @FXML
     public void initialize() {
-        productionService = new ProductionService();
-        filtreActuel = FiltrePeriode.creerFiltreTout();
+        try {
+            matiereService = new MatierePremiereService();
+            productionService = new ProductionService();
+            filtreActuel = FiltrePeriode.creerFiltreTout();
 
-        // Configuration des filtres
-        btnAppliquerFiltre.setOnAction(e -> appliquerFiltre());
-        btnVoirTout.setOnAction(e -> voirTout());
+            // Configuration du spinner pour le nombre de sorties
+            nombreSortiesSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 10, 2));
+            nombreSortiesSpinner.valueProperty().addListener((obs, old, val) -> creerChampsSortiesIdeales(val));
 
-        // Dates par défaut
-        dateDebutFiltre.setValue(LocalDate.now().minusDays(7));
-        dateFinFiltre.setValue(LocalDate.now());
+            // Configuration des boutons
+            btnCreerMatiere.setOnAction(e -> creerNouvelleMatiere());
+            btnAppliquerFiltre.setOnAction(e -> appliquerFiltre());
+            btnVoirTout.setOnAction(e -> voirTout());
 
-        mettreAJourLabelFiltre();
+            // Configuration du ComboBox des matières premières
+            matierePremiereCombo.setConverter(new javafx.util.StringConverter<MatierePremiereModel>() {
+                @Override
+                public String toString(MatierePremiereModel matiere) {
+                    return matiere != null ? matiere.getNom() : "";
+                }
+
+                @Override
+                public MatierePremiereModel fromString(String string) {
+                    return null; // Pas utilisé
+                }
+            });
+
+            matierePremiereCombo.valueProperty().addListener((obs, old, val) -> {
+                if (val != null) {
+                    selectionnerMatiere(val);
+                }
+            });
+
+            // Dates par défaut
+            dateDebutFiltre.setValue(LocalDate.now().minusDays(7));
+            dateFinFiltre.setValue(LocalDate.now());
+
+            // Initialisation
+            creerChampsSortiesIdeales(2);
+            chargerMatieresPremieres();
+            mettreAJourLabelFiltre();
+
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de l'initialisation du contrôleur", e);
+            afficherErreur("Erreur d'initialisation", "Impossible d'initialiser l'application : " + e.getMessage());
+        }
+    }
+
+    private void creerChampsSortiesIdeales(int nombre) {
+        sortiesIdealesContainer.getChildren().clear();
+        champsSortiesIdeales.clear();
+
+        for (int i = 1; i <= nombre; i++) {
+            HBox hbox = new HBox(10);
+            Label label = new Label("Sortie " + i + " idéale :");
+            TextField field = new TextField();
+            field.setPromptText("Quantité idéale sortie " + i);
+
+            TextField nomField = new TextField();
+            nomField.setPromptText("Nom sortie " + i);
+            nomField.setText("Sortie " + i); // Nom par défaut
+
+            champsSortiesIdeales.add(field);
+            champsSortiesIdeales.add(nomField);
+
+            hbox.getChildren().addAll(label, field, new Label("Nom:"), nomField);
+            sortiesIdealesContainer.getChildren().add(hbox);
+        }
     }
 
     @FXML
-    public void ajouterJour() {
-        Production production = new Production();
+    public void creerNouvelleMatiere() {
+        try {
+            String nom = matierePremiereField.getText().trim();
+            if (nom.isEmpty()) {
+                afficherErreur("Nom manquant", "Veuillez saisir le nom de la matière première.");
+                return;
+            }
+
+            String entreeText = quantiteEntreeIdealeField.getText().trim();
+            if (entreeText.isEmpty()) {
+                afficherErreur("Quantité manquante", "Veuillez saisir la quantité d'entrée idéale.");
+                return;
+            }
+
+            double quantiteEntreeIdeale = Double.parseDouble(entreeText);
+            int nombreSorties = nombreSortiesSpinner.getValue();
+
+            // Créer les sorties idéales
+            List<SortieIdeale> sortiesIdeales = new ArrayList<>();
+            for (int i = 0; i < nombreSorties; i++) {
+                String quantiteText = champsSortiesIdeales.get(i * 2).getText().trim();
+                String nomSortie = champsSortiesIdeales.get(i * 2 + 1).getText().trim();
+
+                if (quantiteText.isEmpty()) {
+                    afficherErreur("Sortie manquante", "Veuillez saisir la quantité pour la sortie " + (i + 1));
+                    return;
+                }
+
+                double quantite = Double.parseDouble(quantiteText);
+                sortiesIdeales.add(new SortieIdeale(i + 1, quantite, nomSortie.isEmpty() ? "Sortie " + (i + 1) : nomSortie));
+            }
+
+            // Créer la matière première
+            MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
+                    nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
+
+            // Actualiser la liste et sélectionner la nouvelle matière
+            chargerMatieresPremieres();
+            matierePremiereCombo.setValue(matiere);
+
+            afficherInfo("Succès", "Matière première créée avec succès !");
+
+            // Vider les champs
+            viderChampsSaisie();
+
+        } catch (NumberFormatException e) {
+            afficherErreur("Erreur de saisie", "Veuillez entrer des valeurs numériques valides.");
+        } catch (ServiceException e) {
+            afficherErreur("Erreur de création", e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de la création de la matière première", e);
+            afficherErreur("Erreur", "Une erreur inattendue s'est produite : " + e.getMessage());
+        }
+    }
+
+    private void chargerMatieresPremieres() {
+        try {
+            List<MatierePremiereModel> matieres = matiereService.listerMatieresActives();
+            matierePremiereCombo.getItems().clear();
+            matierePremiereCombo.getItems().addAll(matieres);
+        } catch (ServiceException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du chargement des matières premières", e);
+            afficherErreur("Erreur de chargement", "Impossible de charger les matières premières : " + e.getMessage());
+        }
+    }
+
+    private void selectionnerMatiere(MatierePremiereModel matiere) {
+        matiereActuelle = matiere;
+        productionService.setMatierePremiereModel(matiere);
+
+        labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
+
+        // Actualiser toutes les productions existantes
+        for (ProductionUI productionUI : listeProductionUI) {
+            productionUI.production.setMatierePremiereId(matiere.getId());
+            productionUI.actualiserAffichage();
+        }
+
+        calculerPerformances();
+    }
+
+    @FXML
+    public void ajouterProduction() {
+        if (matiereActuelle == null) {
+            afficherErreur("Matière non sélectionnée", "Veuillez d'abord sélectionner ou créer une matière première.");
+            return;
+        }
+
+        ProductionModel production = new ProductionModel();
+        production.setMatierePremiereId(matiereActuelle.getId());
+        production.setDateProduction(LocalDate.now());
+
         ProductionUI productionUI = new ProductionUI(production);
         listeProductionUI.add(productionUI);
         productionService.ajouterProduction(production);
-        joursContainer.getChildren().add(productionUI.getVBox());
+
+        joursContainer.getChildren().add(joursContainer.getChildren().size() - 1, productionUI.getContainer());
 
         compteurProductions++;
 
@@ -162,7 +428,8 @@ public class TrackerController {
     }
 
     private void ajouterBoutonCalculer() {
-        Button btnCalculer = new Button("Calculer les performances");
+        Button btnCalculer = new Button("🔄 Calculer les performances");
+        btnCalculer.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
         btnCalculer.setOnAction(e -> calculerPerformances());
         joursContainer.getChildren().add(btnCalculer);
     }
@@ -197,6 +464,8 @@ public class TrackerController {
     @FXML
     public void filtrer7DerniersJours() {
         filtreActuel = FiltrePeriode.creerFiltreSeptJours();
+        dateDebutFiltre.setValue(filtreActuel.getDateDebut());
+        dateFinFiltre.setValue(filtreActuel.getDateFin());
         mettreAJourLabelFiltre();
         calculerPerformances();
     }
@@ -204,6 +473,8 @@ public class TrackerController {
     @FXML
     public void filtrerSemaineCourante() {
         filtreActuel = FiltrePeriode.creerFiltreSemaineCourante();
+        dateDebutFiltre.setValue(filtreActuel.getDateDebut());
+        dateFinFiltre.setValue(filtreActuel.getDateFin());
         mettreAJourLabelFiltre();
         calculerPerformances();
     }
@@ -211,45 +482,37 @@ public class TrackerController {
     @FXML
     public void filtrerMoisCourant() {
         filtreActuel = FiltrePeriode.creerFiltreMoisCourant();
+        dateDebutFiltre.setValue(filtreActuel.getDateDebut());
+        dateFinFiltre.setValue(filtreActuel.getDateFin());
         mettreAJourLabelFiltre();
         calculerPerformances();
     }
 
     private void calculerPerformances() {
-        // Créer le modèle idéal
-        ModeleIdeal modele = creerModeleIdeal();
-        if (modele == null) return;
+        if (matiereActuelle == null) {
+            return;
+        }
 
-        productionService.setModeleIdeal(modele);
-
-        // Obtenir les productions filtrées
-        List<Production> productionsFiltrees = productionService.getProductionsFiltrees(
-                filtreActuel.getDateDebut(),
-                filtreActuel.getDateFin()
-        );
-
-        // Grouper par jour
-        Map<LocalDate, JourneeProduction> journees = productionService.grouperParJour(productionsFiltrees);
-
-        // Calculer les statistiques
-        StatistiquesService.StatistiquesResume stats = StatistiquesService.calculerStatistiques(journees, modele);
-
-        // Afficher les résultats
-        afficherStatistiques(stats);
-        mettreAJourAffichageProductions(journees);
-    }
-
-    private ModeleIdeal creerModeleIdeal() {
         try {
-            String nom = matierePremiereField.getText();
-            double entree = Double.parseDouble(quantiteEntreeIdealeField.getText());
-            double sortie1 = Double.parseDouble(sortie1IdealeField.getText());
-            double sortie2 = Double.parseDouble(sortie2IdealeField.getText());
+            // Obtenir les productions filtrées
+            List<ProductionModel> productionsFiltrees = productionService.getProductionsFiltrees(
+                    filtreActuel.getDateDebut(),
+                    filtreActuel.getDateFin()
+            );
 
-            return new ModeleIdeal(nom, entree, sortie1, sortie2);
-        } catch (NumberFormatException e) {
-            afficherErreur("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour le modèle idéal.");
-            return null;
+            // Grouper par jour
+            Map<LocalDate, JourneeProduction> journees = productionService.grouperParJour(productionsFiltrees);
+
+            // Calculer les statistiques
+            StatistiquesService.StatistiquesResume stats = StatistiquesService.calculerStatistiques(journees, matiereActuelle);
+
+            // Afficher les résultats
+            afficherStatistiques(stats);
+            mettreAJourAffichageProductions(journees);
+
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du calcul des performances", e);
+            afficherErreur("Erreur de calcul", "Erreur lors du calcul des performances : " + e.getMessage());
         }
     }
 
@@ -267,34 +530,43 @@ public class TrackerController {
     }
 
     private void mettreAJourAffichageProductions(Map<LocalDate, JourneeProduction> journees) {
-        // Parcourir tous les ProductionUI
         for (ProductionUI productionUI : listeProductionUI) {
-            if (productionUI.production != null) {
-                LocalDate dateProduction = productionUI.production.getDate();
+            if (productionUI.production != null && productionUI.production.getDateProduction() != null) {
+                LocalDate dateProduction = productionUI.production.getDateProduction();
 
-                if (dateProduction != null && journees.containsKey(dateProduction)) {
+                if (journees.containsKey(dateProduction)) {
                     JourneeProduction journee = journees.get(dateProduction);
 
-                    // Créer le texte d'affichage
                     StringBuilder sb = new StringBuilder();
                     sb.append(String.format("📅 %s\n", dateProduction.toString()));
-                    sb.append(String.format("🏭 Total jour: %.2fkg entrée\n", journee.getTotalEntreeJour()));
-                    sb.append(String.format("📦 S1: %.2fkg | S2: %.2fkg\n",
-                            journee.getTotalSortie1Jour(), journee.getTotalSortie2Jour()));
+                    sb.append(String.format("🏭 Total entrée jour: %.2fkg\n", journee.getTotalEntreeJour()));
+                    sb.append(String.format("📦 Total sorties jour: %.2fkg\n", journee.getTotalSortiesJour()));
+
+                    // Afficher le détail par sortie
+                    if (matiereActuelle != null && matiereActuelle.getSortiesIdeales() != null) {
+                        for (SortieIdeale sortieIdeale : matiereActuelle.getSortiesIdeales()) {
+                            double totalSortie = journee.getTotalSortieParNumero(sortieIdeale.getNumeroSortie());
+                            sb.append(String.format("   %s: %.2fkg\n", sortieIdeale.getNomSortie(), totalSortie));
+                        }
+                    }
+
                     sb.append(String.format("⚡ Performance jour: %.1f%%", journee.getPerformanceJour()));
 
                     productionUI.resultatLabel.setText(sb.toString());
 
                     // Couleur selon la performance
                     double performance = journee.getPerformanceJour();
-                    Color couleur = performance < 100 ? Color.RED :
-                            (performance > 100 ? Color.GREEN : Color.GRAY);
-                    productionUI.resultatLabel.setTextFill(couleur);
+                    if (performance >= 100) {
+                        productionUI.resultatLabel.setTextFill(Color.GREEN);
+                    } else if (performance >= 80) {
+                        productionUI.resultatLabel.setTextFill(Color.ORANGE);
+                    } else {
+                        productionUI.resultatLabel.setTextFill(Color.RED);
+                    }
 
                 } else {
-                    // Si pas de données pour cette date
-                    productionUI.resultatLabel.setText("⛔ Pas de données pour cette date");
-                    productionUI.resultatLabel.setTextFill(Color.RED);
+                    productionUI.resultatLabel.setText("⛔ Pas de données pour cette date ou hors période filtrée");
+                    productionUI.resultatLabel.setTextFill(Color.GRAY);
                 }
             }
         }
@@ -304,10 +576,31 @@ public class TrackerController {
         labelFiltrageActuel.setText("📅 " + filtreActuel.getNom());
     }
 
+    private void viderChampsSaisie() {
+        matierePremiereField.clear();
+        quantiteEntreeIdealeField.clear();
+        for (TextField field : champsSortiesIdeales) {
+            field.clear();
+        }
+        // Remettre les noms par défaut
+        for (int i = 1; i < champsSortiesIdeales.size(); i += 2) {
+            champsSortiesIdeales.get(i).setText("Sortie " + ((i + 1) / 2));
+        }
+    }
+
     private void afficherErreur(String titre, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Erreur");
         alert.setHeaderText(titre);
         alert.setContentText(message);
-        alert.show();
+        alert.showAndWait();
+    }
+
+    private void afficherInfo(String titre, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information");
+        alert.setHeaderText(titre);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

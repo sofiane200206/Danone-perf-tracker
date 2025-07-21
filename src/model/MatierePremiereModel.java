@@ -79,20 +79,7 @@ public class MatierePremiereModel {
     }
 
     // Conversion vers l'ancien ModeleIdeal pour compatibilité
-    public ModeleIdeal toModeleIdeal() {
-        if (nombreSorties == 2) {
-            SortieIdeale sortie1 = getSortieIdeale(1);
-            SortieIdeale sortie2 = getSortieIdeale(2);
 
-            return new ModeleIdeal(
-                    nom,
-                    quantiteEntreeIdeale,
-                    sortie1 != null ? sortie1.getQuantiteIdeale() : 0,
-                    sortie2 != null ? sortie2.getQuantiteIdeale() : 0
-            );
-        }
-        throw new UnsupportedOperationException("Conversion impossible pour " + nombreSorties + " sorties");
-    }
 
     // Getters et setters
     public Long getId() { return id; }

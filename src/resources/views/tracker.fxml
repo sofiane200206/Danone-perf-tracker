@@ -1,111 +1,160 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="controller.TrackerController">
-    <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
-    </padding>
+<ScrollPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.TrackerController">
+    <content>
+        <VBox spacing="20.0">
+            <padding>
+                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+            </padding>
 
-    <center>
-        <TabPane tabClosingPolicy="UNAVAILABLE">
-            <!-- Onglet 1 : Modèle Idéal -->
-            <Tab text="Modèle Idéal">
-                <VBox spacing="10">
-                    <padding>
-                        <Insets top="10" right="10" bottom="10" left="10"/>
-                    </padding>
-                    <TextField fx:id="matierePremiereField" promptText="Nom matière première"/>
-                    <TextField fx:id="quantiteEntreeIdealeField" promptText="Quantité entrée idéale"/>
-                    <TextField fx:id="sortie1IdealeField" promptText="Sortie 1 idéale"/>
-                    <TextField fx:id="sortie2IdealeField" promptText="Sortie 2 idéale"/>
+            <!-- Header -->
+            <VBox spacing="10.0">
+                <Label text="🏭 Tracker de Production Industrielle" textFill="#2c3e50">
+                    <font>
+                        <Font name="System Bold" size="24.0" />
+                    </font>
+                </Label>
+                <Separator />
+            </VBox>
+
+            <!-- Section Création Matière Première -->
+            <VBox spacing="15.0" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-border-radius: 8;">
+                <Label text="📦 Création d'une Nouvelle Matière Première" textFill="#495057">
+                    <font>
+                        <Font name="System Bold" size="16.0" />
+                    </font>
+                </Label>
+
+                <GridPane hgap="15.0" vgap="10.0">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="150.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="200.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="150.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="100.0" />
+                    </columnConstraints>
+
+                    <Label text="Nom de la matière :" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                    <TextField fx:id="matierePremiereField" promptText="Ex: Farine de blé" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                    <Label text="Quantité entrée idéale (kg) :" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                    <TextField fx:id="quantiteEntreeIdealeField" promptText="Ex: 1000" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                    <Label text="Nombre de sorties :" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                    <Spinner fx:id="nombreSortiesSpinner" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+                </GridPane>
+
+                <VBox fx:id="sortiesIdealesContainer" spacing="8.0" />
+
+                <HBox alignment="CENTER_LEFT" spacing="15.0">
+                    <Button fx:id="btnCreerMatiere" mnemonicParsing="false" text="✅ Créer la Matière Première" style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;" />
+                </HBox>
+            </VBox>
+
+            <!-- Section Sélection Matière et Statistiques -->
+            <HBox spacing="20.0">
+                <!-- Sélection de matière -->
+                <VBox spacing="10.0" style="-fx-background-color: #e3f2fd; -fx-padding: 15; -fx-border-color: #90caf9; -fx-border-width: 1; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                    <Label text="🎯 Matière Première Active" textFill="#1976d2">
+                        <font>
+                            <Font name="System Bold" size="14.0" />
+                        </font>
+                    </Label>
+
+                    <ComboBox fx:id="matierePremiereCombo" maxWidth="Infinity" promptText="Sélectionnez une matière première..." />
+                    <Label fx:id="labelMatiereSelectionnee" text="📦 Aucune matière sélectionnée" textFill="#666666" wrapText="true" />
                 </VBox>
-            </Tab>
 
-            <!-- Onglet 2 : Réalité terrain avec filtrage -->
-            <Tab text="Réalité terrain">
-                <ScrollPane fitToWidth="true">
-                    <VBox spacing="15">
-                        <padding>
-                            <Insets top="10" right="10" bottom="10" left="10"/>
-                        </padding>
+                <!-- Statistiques -->
+                <VBox spacing="10.0" style="-fx-background-color: #f3e5f5; -fx-padding: 15; -fx-border-color: #ce93d8; -fx-border-width: 1; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
+                    <Label text="📊 Statistiques de Performance" textFill="#7b1fa2">
+                        <font>
+                            <Font name="System Bold" size="14.0" />
+                        </font>
+                    </Label>
 
-                        <!-- Section filtrage par période -->
-                        <VBox spacing="10" style="-fx-background-color: #e8f4f8; -fx-padding: 15; -fx-border-color: #4a90e2; -fx-border-radius: 8; -fx-border-width: 2;">
-                            <Label text="🔍 Filtrage par période" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                    <Label fx:id="labelMeilleurePerf" text="📈 Meilleur jour : N/A" textFill="#388e3c" wrapText="true" />
+                    <Label fx:id="labelPlusGrossePerte" text="📉 Plus grosse perte : N/A" textFill="#d32f2f" wrapText="true" />
+                    <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne globale : N/A" textFill="#1976d2" wrapText="true" />
+                </VBox>
+            </HBox>
 
-                            <!-- Sélection des dates -->
-                            <HBox spacing="15" alignment="CENTER_LEFT">
-                                <Label text="Du :" style="-fx-font-weight: bold;"/>
-                                <DatePicker fx:id="dateDebutFiltre" />
-                                <Label text="Au :" style="-fx-font-weight: bold;"/>
-                                <DatePicker fx:id="dateFinFiltre" />
-                                <Button fx:id="btnAppliquerFiltre" text="Appliquer filtre" style="-fx-background-color: #4a90e2; -fx-text-fill: white; -fx-font-weight: bold;"/>
-                                <Button fx:id="btnVoirTout" text="Voir tout" style="-fx-background-color: #95a5a6; -fx-text-fill: white;"/>
-                            </HBox>
+            <!-- Section Filtrage -->
+            <VBox spacing="15.0" style="-fx-background-color: #fff3e0; -fx-padding: 15; -fx-border-color: #ffb74d; -fx-border-width: 1; -fx-border-radius: 8;">
+                <Label text="🔍 Filtrage par Période" textFill="#f57c00">
+                    <font>
+                        <Font name="System Bold" size="16.0" />
+                    </font>
+                </Label>
 
-                            <!-- Boutons raccourcis -->
-                            <HBox spacing="10" alignment="CENTER_LEFT">
-                                <Label text="Raccourcis :" style="-fx-font-weight: bold;"/>
-                                <Button text="7 derniers jours" onAction="#filtrer7DerniersJours" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11px;"/>
-                                <Button text="Semaine courante" onAction="#filtrerSemaineCourante" style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11px;"/>
-                                <Button text="Mois courant" onAction="#filtrerMoisCourant" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 11px;"/>
-                            </HBox>
+                <Label fx:id="labelFiltrageActuel" text="📅 Filtrage actuel : Tout" textFill="#666666" />
 
-                            <!-- Indicateur de filtre actuel -->
-                            <Label fx:id="labelFiltrageActuel" text="📅 Toutes les productions" style="-fx-font-weight: bold; -fx-text-fill: #2c3e50; -fx-font-size: 12px;"/>
+                <!-- Boutons de filtrage rapide -->
+                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                    <Button mnemonicParsing="false" onAction="#filtrer7DerniersJours" text="📅 7 derniers jours" style="-fx-background-color: #17a2b8; -fx-text-fill: white;" />
+                    <Button mnemonicParsing="false" onAction="#filtrerSemaineCourante" text="📅 Semaine courante" style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
+                    <Button mnemonicParsing="false" onAction="#filtrerMoisCourant" text="📅 Mois courant" style="-fx-background-color: #fd7e14; -fx-text-fill: white;" />
+                    <Button fx:id="btnVoirTout" mnemonicParsing="false" text="🔄 Voir tout" style="-fx-background-color: #6f42c1; -fx-text-fill: white;" />
+                </HBox>
+
+                <!-- Filtrage personnalisé -->
+                <HBox spacing="15.0" alignment="CENTER_LEFT">
+                    <Label text="Du :" />
+                    <DatePicker fx:id="dateDebutFiltre" />
+                    <Label text="Au :" />
+                    <DatePicker fx:id="dateFinFiltre" />
+                    <Button fx:id="btnAppliquerFiltre" mnemonicParsing="false" text="🔍 Appliquer" style="-fx-background-color: #20c997; -fx-text-fill: white; -fx-font-weight: bold;" />
+                </HBox>
+            </VBox>
+
+            <!-- Section Productions -->
+            <VBox spacing="15.0">
+                <HBox alignment="CENTER_LEFT" spacing="15.0">
+                    <Label text="🏭 Gestion des Productions" textFill="#495057">
+                        <font>
+                            <Font name="System Bold" size="18.0" />
+                        </font>
+                    </Label>
+                    <Button mnemonicParsing="false" onAction="#ajouterProduction" text="➕ Ajouter une Production" style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;" />
+                </HBox>
+
+                <Separator />
+
+                <!-- Container pour les productions -->
+                <ScrollPane fitToWidth="true" maxHeight="600.0" style="-fx-background: transparent;">
+                    <content>
+                        <VBox fx:id="joursContainer" spacing="15.0">
+                            <padding>
+                                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                            </padding>
+
+                            <!-- Message d'aide initial -->
+                            <VBox alignment="CENTER" spacing="10.0" style="-fx-background-color: #e8f5e8; -fx-padding: 30; -fx-border-color: #c3e6c3; -fx-border-width: 1; -fx-border-radius: 8;">
+                                <Label text="🚀 Commencez par créer ou sélectionner une matière première" textFill="#155724">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                <Label text="Puis ajoutez vos productions pour suivre les performances en temps réel !" textFill="#155724" wrapText="true" textAlignment="CENTER" />
+                            </VBox>
                         </VBox>
-
-                        <!-- Zone des statistiques globales -->
-                        <VBox spacing="8" fx:id="statistiquesGlobales" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-border-width: 1;">
-                            <Label text="📊 Statistiques de performance" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #495057;"/>
-                            <Separator/>
-                            <Label fx:id="labelMeilleurePerf" text="📈 Meilleur jour : " textFill="#28a745" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
-                            <Label fx:id="labelPlusGrossePerte" text="📉 Pire jour : " textFill="#dc3545" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
-                            <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne performance : " textFill="#007bff" style="-fx-font-weight: bold; -fx-font-size: 12px;"/>
-                        </VBox>
-
-                        <!-- Bouton pour ajouter des jours dynamiquement -->
-                        <HBox spacing="10" alignment="CENTER_LEFT">
-                            <Button text="+ Ajouter une production" onAction="#ajouterJour" style="-fx-background-color: #17a2b8; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10;"/>
-                            <Separator orientation="VERTICAL"/>
-                            <Label text="💡 Astuce : Utilisez les filtres ci-dessus pour analyser des périodes spécifiques" style="-fx-font-style: italic; -fx-text-fill: #6c757d; -fx-font-size: 11px;"/>
-                        </HBox>
-
-                        <!-- Zone où les jours vont s'ajouter -->
-                        <VBox fx:id="joursContainer" spacing="20"/>
-                    </VBox>
+                    </content>
                 </ScrollPane>
-            </Tab>
+            </VBox>
 
-            <!-- Onglet 3 : Analyse avancée (optionnel pour le futur) -->
-            <Tab text="Analyse avancée">
-                <VBox spacing="15">
-                    <padding>
-                        <Insets top="10" right="10" bottom="10" left="10"/>
-                    </padding>
-
-                    <!-- Placeholder pour futures fonctionnalités -->
-                    <VBox spacing="10" style="-fx-background-color: #fff3cd; -fx-padding: 20; -fx-border-color: #ffeaa7; -fx-border-radius: 8;">
-                        <Label text="🚧 Fonctionnalités à venir" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
-                        <Label text="• Graphiques de performance" style="-fx-font-size: 12px;"/>
-                        <Label text="• Prévisions de production" style="-fx-font-size: 12px;"/>
-                        <Label text="• Export des données" style="-fx-font-size: 12px;"/>
-                        <Label text="• Comparaisons multi-périodes" style="-fx-font-size: 12px;"/>
-                        <Label text="• Alertes de performance" style="-fx-font-size: 12px;"/>
-                    </VBox>
-
-                    <!-- Section pour les résultats de filtres avancés -->
-                    <VBox fx:id="resultatsFiltresContainer" spacing="10">
-                        <!-- Les résultats de filtres spéciaux apparaîtront ici -->
-                    </VBox>
-                </VBox>
-            </Tab>
-
-        </TabPane>
-    </center>
-</BorderPane>
+            <!-- Footer -->
+            <VBox spacing="5.0" alignment="CENTER">
+                <Separator />
+                <Label text="💡 Tracker de Production - Suivez vos performances industrielles en temps réel" textFill="#6c757d">
+                    <font>
+                        <Font size="12.0" />
+                    </font>
+                </Label>
+            </VBox>
+        </VBox>
+    </content>
+</ScrollPane>

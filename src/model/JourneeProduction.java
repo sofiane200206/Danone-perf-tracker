@@ -8,61 +8,82 @@ import java.util.List;
 
 public class JourneeProduction {
     private LocalDate date;
-    private List<Production> productions;
+    private List<ProductionModel> productions;
     private double performanceJour;
     private double totalEntreeJour;
-    private double totalSortie1Jour;
-    private double totalSortie2Jour;
+    private double totalSortiesJour; // Remplace totalSortie1Jour et totalSortie2Jour
 
     public JourneeProduction(LocalDate date) {
         this.date = date;
         this.productions = new ArrayList<>();
     }
 
-    public void ajouterProduction(Production production) {
+    public void ajouterProduction(ProductionModel production) {
         productions.add(production);
         recalculerTotaux();
     }
 
     private void recalculerTotaux() {
         totalEntreeJour = productions.stream()
-                .filter(Production::isValide)
-                .mapToDouble(Production::getQuantiteEntreeReelle)
+                .filter(ProductionModel::isValide)
+                .mapToDouble(ProductionModel::getQuantiteEntreeReelle)
                 .sum();
 
-        totalSortie1Jour = productions.stream()
-                .filter(Production::isValide)
-                .mapToDouble(Production::getSortie1Reelle)
-                .sum();
-
-        totalSortie2Jour = productions.stream()
-                .filter(Production::isValide)
-                .mapToDouble(Production::getSortie2Reelle)
+        totalSortiesJour = productions.stream()
+                .filter(ProductionModel::isValide)
+                .mapToDouble(ProductionModel::getTotalSortiesReelles)
                 .sum();
     }
 
-    public void calculerPerformance(ModeleIdeal modele) {
-        if (modele == null || !modele.isValide() || totalEntreeJour == 0) {
+    public void calculerPerformance(MatierePremiereModel matiere) {
+        if (matiere == null || !matiere.isValide() || totalEntreeJour == 0) {
             performanceJour = 0;
             return;
         }
 
-        double sortie1IdealeJour = (totalEntreeJour * modele.getSortie1Ideale()) / modele.getQuantiteEntreeIdeale();
-        double sortie2IdealeJour = (totalEntreeJour * modele.getSortie2Ideale()) / modele.getQuantiteEntreeIdeale();
-        double totalIdealeJour = sortie1IdealeJour + sortie2IdealeJour;
+        // Calculer la production idéale totale pour la journée
+        double ratioProduction = totalEntreeJour / matiere.getQuantiteEntreeIdeale();
+        double totalSortiesIdealesJour = ratioProduction * matiere.getTotalSortiesIdeales();
 
-        if (totalIdealeJour > 0) {
-            performanceJour = ((totalSortie1Jour + totalSortie2Jour) / totalIdealeJour) * 100;
+        if (totalSortiesIdealesJour > 0) {
+            performanceJour = (totalSortiesJour / totalSortiesIdealesJour) * 100;
         } else {
             performanceJour = 0;
         }
     }
 
+    // Méthodes de compatibilité pour l'ancien système (si besoin)
+
+
+    // Nouvelle méthode pour obtenir le total d'une sortie spécifique
+    public double getTotalSortieParNumero(int numeroSortie) {
+        return productions.stream()
+                .filter(ProductionModel::isValide)
+                .mapToDouble(p -> {
+                    ProductionModel.SortieReelle sortie = p.getSortieReelle(numeroSortie);
+                    return sortie != null ? sortie.getQuantiteReelle() : 0;
+                })
+                .sum();
+    }
+
     // Getters
-    public LocalDate getDate() { return date; }
-    public List<Production> getProductions() { return new ArrayList<>(productions); }
-    public double getPerformanceJour() { return performanceJour; }
-    public double getTotalEntreeJour() { return totalEntreeJour; }
-    public double getTotalSortie1Jour() { return totalSortie1Jour; }
-    public double getTotalSortie2Jour() { return totalSortie2Jour; }
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public List<ProductionModel> getProductions() {
+        return new ArrayList<>(productions);
+    }
+
+    public double getPerformanceJour() {
+        return performanceJour;
+    }
+
+    public double getTotalEntreeJour() {
+        return totalEntreeJour;
+    }
+
+    public double getTotalSortiesJour() {
+        return totalSortiesJour;
+    }
 }

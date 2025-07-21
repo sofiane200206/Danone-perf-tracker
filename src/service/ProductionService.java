@@ -6,54 +6,58 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ProductionService {
-    private List<Production> productions;
-    private ModeleIdeal modeleIdeal;
+    private List<ProductionModel> productions;
+    private MatierePremiereModel matierePremiereModel;
 
     public ProductionService() {
         this.productions = new ArrayList<>();
     }
 
-    public void setModeleIdeal(ModeleIdeal modele) {
-        this.modeleIdeal = modele;
+    public void setMatierePremiereModel(MatierePremiereModel matiere) {
+        this.matierePremiereModel = matiere;
     }
 
-    public void ajouterProduction(Production production) {
+    public void ajouterProduction(ProductionModel production) {
         if (production != null) {
             productions.add(production);
         }
     }
 
-    public List<Production> getProductions() {
+    public List<ProductionModel> getProductions() {
         return new ArrayList<>(productions);
     }
 
-    public List<Production> getProductionsFiltrees(LocalDate dateDebut, LocalDate dateFin) {
+    public List<ProductionModel> getProductionsFiltrees(LocalDate dateDebut, LocalDate dateFin) {
         return productions.stream()
-                .filter(p -> p.getDate() != null)
-                .filter(p -> (dateDebut == null || !p.getDate().isBefore(dateDebut)))
-                .filter(p -> (dateFin == null || !p.getDate().isAfter(dateFin)))
+                .filter(p -> p.getDateProduction() != null)
+                .filter(p -> (dateDebut == null || !p.getDateProduction().isBefore(dateDebut)))
+                .filter(p -> (dateFin == null || !p.getDateProduction().isAfter(dateFin)))
                 .collect(Collectors.toList());
     }
 
-    public Map<LocalDate, JourneeProduction> grouperParJour(List<Production> productions) {
+    public Map<LocalDate, JourneeProduction> grouperParJour(List<ProductionModel> productions) {
         Map<LocalDate, JourneeProduction> joursMap = new HashMap<>();
 
-        for (Production production : productions) {
-            if (production.getDate() != null) {
+        for (ProductionModel production : productions) {
+            if (production.getDateProduction() != null) {
                 JourneeProduction journee = joursMap.computeIfAbsent(
-                        production.getDate(),
+                        production.getDateProduction(),
                         JourneeProduction::new
                 );
                 journee.ajouterProduction(production);
-                journee.calculerPerformance(modeleIdeal);
+                journee.calculerPerformance(matierePremiereModel);
             }
         }
 
         return joursMap;
     }
 
-    public void supprimerProduction(Production production) {
+    public void supprimerProduction(ProductionModel production) {
         productions.remove(production);
+    }
+
+    public void supprimerProductionParId(Long id) {
+        productions.removeIf(p -> Objects.equals(p.getId(), id));
     }
 
     public void viderProductions() {
