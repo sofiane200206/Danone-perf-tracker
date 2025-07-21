@@ -45,7 +45,9 @@ public class StatistiquesService {
      * Calcule les statistiques basées sur le nouveau système avec MatierePremiereModel
      */
     public static StatistiquesResume calculerStatistiques(Map<LocalDate, JourneeProduction> journees, MatierePremiereModel matiere) {
+
         StatistiquesResume stats = new StatistiquesResume();
+
 
         if (journees.isEmpty() || matiere == null || !matiere.isValide()) {
             return stats;
@@ -62,6 +64,7 @@ public class StatistiquesService {
         double totalSortiesPeriode = 0;
 
         for (JourneeProduction journee : journees.values()) {
+            journee.calculerPerformance(matiere);
             double perf = journee.getPerformanceJour();
             sommePerformances += perf;
 
@@ -102,62 +105,7 @@ public class StatistiquesService {
      * Version de compatibilité avec l'ancien système ModeleIdeal (deprecated)
      * Utilise les méthodes dépréciées de JourneeProduction pour maintenir la compatibilité
      */
-    @Deprecated
-    public static StatistiquesResume calculerStatistiquesLegacy(Map<LocalDate, JourneeProduction> journees, ModeleIdeal modele) {
-        StatistiquesResume stats = new StatistiquesResume();
 
-        if (journees.isEmpty() || modele == null || !modele.isValide()) {
-            return stats;
-        }
-
-        double sommePerformances = 0;
-        double performanceMax = Double.MIN_VALUE;
-        double performanceMin = Double.MAX_VALUE;
-        LocalDate jourMax = null;
-        LocalDate jourMin = null;
-
-        // Totaux pour la période
-        double totalEntreePeriode = 0;
-        double totalSortie1Periode = 0;
-        double totalSortie2Periode = 0;
-
-        for (JourneeProduction journee : journees.values()) {
-            //journee.calculerPerformance(matiere);
-            double perf = journee.getPerformanceJour();
-            sommePerformances += perf;
-
-            totalEntreePeriode += journee.getTotalEntreeJour();
-             // Méthode dépréciée
-
-            if (perf > performanceMax) {
-                performanceMax = perf;
-                jourMax = journee.getDate();
-            }
-            if (perf < performanceMin) {
-                performanceMin = perf;
-                jourMin = journee.getDate();
-            }
-        }
-
-        int nombreJours = journees.size();
-
-        // Calcul performance globale de la période (ancien système)
-        double sortie1IdealePeriode = (totalEntreePeriode * modele.getSortie1Ideale()) / modele.getQuantiteEntreeIdeale();
-        double sortie2IdealePeriode = (totalEntreePeriode * modele.getSortie2Ideale()) / modele.getQuantiteEntreeIdeale();
-        double totalIdealePeriode = sortie1IdealePeriode + sortie2IdealePeriode;
-        double performanceGlobale = totalIdealePeriode > 0 ?
-                ((totalSortie1Periode + totalSortie2Periode) / totalIdealePeriode) * 100 : 0;
-
-        stats.setPerformanceMoyenne(sommePerformances / nombreJours);
-        stats.setPerformanceMax(performanceMax);
-        stats.setPerformanceMin(performanceMin);
-        stats.setJourMeilleur(jourMax);
-        stats.setJourPire(jourMin);
-        stats.setNombreJours(nombreJours);
-        stats.setPerformanceGlobalePeriode(performanceGlobale);
-
-        return stats;
-    }
 
     /**
      * Méthode utilitaire pour calculer des statistiques par sortie spécifique
