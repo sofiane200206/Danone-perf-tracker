@@ -152,7 +152,14 @@
                     </content>
                 </ScrollPane>
             </VBox>
-
+            <Button fx:id="btnExporterExcel"
+                    text="📊 Exporter vers Excel"
+                    styleClass="export-button"
+                    style="-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16 8 16;">
+                <tooltip>
+                    <Tooltip text="Exporter toutes les productions de la matière sélectionnée vers un fichier Excel"/>
+                </tooltip>
+            </Button>
             <!-- Footer -->
             <VBox spacing="5.0" alignment="CENTER">
                 <Separator />
