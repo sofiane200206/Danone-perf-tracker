@@ -42,8 +42,6 @@ public class TrackerController {
     @FXML private Button btnVoirTout;
     @FXML private Label labelFiltrageActuel;
     @FXML private Label labelMatiereSelectionnee;
-    private static Long compteurIdProduction = 1L;
-    private static Long compteurIdMatiere = 1L;
     // Services
     private ExcelExportService excelExportService;
     private MatierePremiereService matiereService;
@@ -464,9 +462,7 @@ public class TrackerController {
                     nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
 
             // ✅ S'assurer que la matière a un ID
-            if (matiere.getId() == null) {
-                matiere.setId(compteurIdMatiere++);
-            }
+
 
             // Actualiser la liste et sélectionner la nouvelle matière
             chargerMatieresPremieres();
