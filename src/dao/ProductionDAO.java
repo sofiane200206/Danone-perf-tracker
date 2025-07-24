@@ -30,30 +30,32 @@ public class ProductionDAO {
             VALUES (?, ?, ?, ?, ?, ?)
             """;
 
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryProduction, Statement.RETURN_GENERATED_KEYS)) {
-
+        try (Connection conn = dbManager.getConnection()) {
             conn.setAutoCommit(false);
 
             try {
                 // Insérer la production
-                stmt.setLong(1, production.getMatierePremiereId());
-                stmt.setDate(2, Date.valueOf(production.getDateProduction()));
-                stmt.setTime(3, Time.valueOf(production.getHeureProduction()));
-                stmt.setDouble(4, production.getQuantiteEntreeReelle());
-                stmt.setString(5, production.getStatut());
-                stmt.setString(6, production.getMessageErreur());
+                try (PreparedStatement stmt = conn.prepareStatement(queryProduction)) {
+                    stmt.setLong(1, production.getMatierePremiereId());
+                    stmt.setDate(2, Date.valueOf(production.getDateProduction()));
+                    stmt.setTime(3, Time.valueOf(production.getHeureProduction()));
+                    stmt.setDouble(4, production.getQuantiteEntreeReelle());
+                    stmt.setString(5, production.getStatut());
+                    stmt.setString(6, production.getMessageErreur());
 
-                int rowsAffected = stmt.executeUpdate();
-                if (rowsAffected == 0) {
-                    throw new SQLException("Échec de la création de la production");
+                    int rowsAffected = stmt.executeUpdate();
+                    if (rowsAffected == 0) {
+                        throw new SQLException("Échec de la création de la production");
+                    }
                 }
 
-                // Récupérer l'ID généré
-                Long productionId;
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        productionId = generatedKeys.getLong(1);
+                // Récupérer l'ID généré avec une requête séparée (compatible SQLite)
+                Long productionId = null;
+                String queryLastId = "SELECT last_insert_rowid()";
+                try (PreparedStatement stmt = conn.prepareStatement(queryLastId);
+                     ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        productionId = rs.getLong(1);
                         production.setId(productionId);
                     } else {
                         throw new SQLException("Échec de la récupération de l'ID généré");
@@ -61,7 +63,9 @@ public class ProductionDAO {
                 }
 
                 // Insérer les sorties réelles
-                creerSortiesReelles(conn, productionId, production.getSortiesReelles());
+                if (production.getSortiesReelles() != null && !production.getSortiesReelles().isEmpty()) {
+                    creerSortiesReelles(conn, productionId, production.getSortiesReelles());
+                }
 
                 conn.commit();
                 LOGGER.info("Production créée avec succès : ID " + productionId);
@@ -69,6 +73,7 @@ public class ProductionDAO {
 
             } catch (Exception e) {
                 conn.rollback();
+                LOGGER.log(Level.SEVERE, "Erreur lors de la création de la production", e);
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
@@ -245,7 +250,9 @@ public class ProductionDAO {
                 supprimerSortiesReelles(conn, production.getId());
 
                 // Insérer les nouvelles sorties
-                creerSortiesReelles(conn, production.getId(), production.getSortiesReelles());
+                if (production.getSortiesReelles() != null && !production.getSortiesReelles().isEmpty()) {
+                    creerSortiesReelles(conn, production.getId(), production.getSortiesReelles());
+                }
 
                 conn.commit();
                 LOGGER.info("Production mise à jour : ID " + production.getId());
@@ -284,6 +291,7 @@ public class ProductionDAO {
             }
         }
     }
+
     public int compterParMatiereId(Long matiereId) throws SQLException {
         String query = "SELECT COUNT(*) FROM productions WHERE matiere_premiere_id = ?";
 

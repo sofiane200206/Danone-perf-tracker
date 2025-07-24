@@ -11,6 +11,10 @@ import model.ProductionModel.SortieReelle;
 import service.*;
 import filter.*;
 
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.time.format.DateTimeFormatter;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -21,6 +25,7 @@ public class TrackerController {
     private static final Logger LOGGER = Logger.getLogger(TrackerController.class.getName());
 
     // Composants FXML
+    @FXML private Button btnExporterExcel;
     @FXML private TextField matierePremiereField;
     @FXML private TextField quantiteEntreeIdealeField;
     @FXML private VBox sortiesIdealesContainer;
@@ -40,6 +45,7 @@ public class TrackerController {
     private static Long compteurIdProduction = 1L;
     private static Long compteurIdMatiere = 1L;
     // Services
+    private ExcelExportService excelExportService;
     private MatierePremiereService matiereService;
     private ProductionService productionService;
     private FiltrePeriode filtreActuel;
@@ -348,6 +354,9 @@ public class TrackerController {
         try {
             matiereService = new MatierePremiereService();
             productionService = new ProductionService();
+            excelExportService = new ExcelExportService(productionService);
+            btnExporterExcel.setOnAction(e -> exporterVersExcel());
+
             filtreActuel = FiltrePeriode.creerFiltreTout();
 
             // Configuration du spinner pour le nombre de sorties
@@ -867,6 +876,111 @@ public class TrackerController {
             LOGGER.log(Level.SEVERE, "Erreur lors de la suppression de la matière première", e);
             afficherErreur("Erreur de suppression",
                     "Impossible de supprimer la matière première : " + e.getMessage());
+        }
+    }
+    @FXML
+    public void exporterVersExcel() {
+        if (matiereActuelle == null) {
+            afficherErreur("Aucune matière sélectionnée",
+                    "Veuillez d'abord sélectionner une matière première à exporter.");
+            return;
+        }
+
+        try {
+            // Créer le sélecteur de fichier
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Exporter les productions vers Excel");
+
+            // Configuration des filtres d'extension
+            FileChooser.ExtensionFilter extFilter =
+                    new FileChooser.ExtensionFilter("Fichiers Excel (*.xlsx)", "*.xlsx");
+            fileChooser.getExtensionFilters().add(extFilter);
+
+            // Nom de fichier par défaut
+            String nomFichierDefaut = String.format("Production_%s_%s.xlsx",
+                    matiereActuelle.getNom().replaceAll("[^a-zA-Z0-9]", "_"),
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            fileChooser.setInitialFileName(nomFichierDefaut);
+
+            // Répertoire initial (Documents de l'utilisateur)
+            String userHome = System.getProperty("user.home");
+            File documentsDir = new File(userHome, "Documents");
+            if (documentsDir.exists()) {
+                fileChooser.setInitialDirectory(documentsDir);
+            }
+
+            // Afficher la boîte de dialogue
+            File fichier = fileChooser.showSaveDialog(btnExporterExcel.getScene().getWindow());
+
+            if (fichier != null) {
+                // S'assurer que l'extension .xlsx est présente
+                String cheminFichier = fichier.getAbsolutePath();
+                if (!cheminFichier.toLowerCase().endsWith(".xlsx")) {
+                    cheminFichier += ".xlsx";
+                }
+
+                // Effectuer l'export
+                LOGGER.info("Début de l'export vers: " + cheminFichier);
+                excelExportService.exporterProductions(matiereActuelle, cheminFichier);
+
+                // Confirmation de succès
+                afficherInfo("Export réussi",
+                        String.format("Les données de '%s' ont été exportées avec succès vers:\n%s\n\n" +
+                                        "Le fichier contient:\n" +
+                                        "• Résumé de la matière première\n" +
+                                        "• Détail de toutes les productions\n" +
+                                        "• Statistiques complètes",
+                                matiereActuelle.getNom(), cheminFichier));
+
+                LOGGER.info("Export terminé avec succès");
+
+            } else {
+                LOGGER.info("Export annulé par l'utilisateur");
+            }
+
+        } catch (ServiceException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de l'export Excel", e);
+            afficherErreur("Erreur d'export",
+                    "Impossible d'exporter les données vers Excel:\n" + e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur inattendue lors de l'export", e);
+            afficherErreur("Erreur inattendue",
+                    "Une erreur inattendue s'est produite lors de l'export:\n" + e.getMessage());
+        }
+    }
+
+    // 6. OPTIONNEL: Ajouter une méthode pour export rapide (bouton alternatif)
+    @FXML
+    public void exportRapideVersExcel() {
+        if (matiereActuelle == null) {
+            afficherErreur("Aucune matière sélectionnée",
+                    "Veuillez d'abord sélectionner une matière première à exporter.");
+            return;
+        }
+
+        try {
+            // Export direct vers le bureau avec nom automatique
+            String userHome = System.getProperty("user.home");
+            String nomFichier = String.format("Production_%s_%s.xlsx",
+                    matiereActuelle.getNom().replaceAll("[^a-zA-Z0-9]", "_"),
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm")));
+
+            String cheminFichier = userHome + File.separator + "Desktop" + File.separator + nomFichier;
+
+            // Si le bureau n'existe pas, utiliser le répertoire utilisateur
+            File bureauDir = new File(userHome, "Desktop");
+            if (!bureauDir.exists()) {
+                cheminFichier = userHome + File.separator + nomFichier;
+            }
+
+            excelExportService.exporterProductions(matiereActuelle, cheminFichier);
+
+            afficherInfo("Export rapide réussi",
+                    String.format("Fichier exporté vers:\n%s", cheminFichier));
+
+        } catch (ServiceException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors de l'export rapide", e);
+            afficherErreur("Erreur d'export", e.getMessage());
         }
     }
     public void supprimerMatiere(MatierePremiereModel matiere) {

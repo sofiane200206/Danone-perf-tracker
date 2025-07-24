@@ -24,29 +24,31 @@ public class MatierePremiereDAO {
             VALUES (?, ?, ?, ?, ?)
             """;
 
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryMatiere, Statement.RETURN_GENERATED_KEYS)) {
-
+        try (Connection conn = dbManager.getConnection()) {
             conn.setAutoCommit(false);
 
             try {
                 // Insérer la matière première
-                stmt.setString(1, matiere.getNom());
-                stmt.setDouble(2, matiere.getQuantiteEntreeIdeale());
-                stmt.setInt(3, matiere.getNombreSorties());
-                stmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
-                stmt.setBoolean(5, matiere.isActif());
+                try (PreparedStatement stmt = conn.prepareStatement(queryMatiere)) {
+                    stmt.setString(1, matiere.getNom());
+                    stmt.setDouble(2, matiere.getQuantiteEntreeIdeale());
+                    stmt.setInt(3, matiere.getNombreSorties());
+                    stmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+                    stmt.setBoolean(5, matiere.isActif());
 
-                int rowsAffected = stmt.executeUpdate();
-                if (rowsAffected == 0) {
-                    throw new SQLException("Échec de la création de la matière première");
+                    int rowsAffected = stmt.executeUpdate();
+                    if (rowsAffected == 0) {
+                        throw new SQLException("Échec de la création de la matière première");
+                    }
                 }
 
-                // Récupérer l'ID généré
-                Long matiereId;
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        matiereId = generatedKeys.getLong(1);
+                // Récupérer l'ID généré avec une requête séparée (compatible SQLite)
+                Long matiereId = null;
+                String queryLastId = "SELECT last_insert_rowid()";
+                try (PreparedStatement stmt = conn.prepareStatement(queryLastId);
+                     ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        matiereId = rs.getLong(1);
                         matiere.setId(matiereId);
                     } else {
                         throw new SQLException("Échec de la récupération de l'ID généré");
@@ -54,7 +56,9 @@ public class MatierePremiereDAO {
                 }
 
                 // Insérer les sorties idéales
-                creerSortiesIdeales(conn, matiereId, matiere.getSortiesIdeales());
+                if (matiere.getSortiesIdeales() != null && !matiere.getSortiesIdeales().isEmpty()) {
+                    creerSortiesIdeales(conn, matiereId, matiere.getSortiesIdeales());
+                }
 
                 conn.commit();
                 LOGGER.info("Matière première créée avec succès : " + matiere.getNom());
@@ -62,6 +66,7 @@ public class MatierePremiereDAO {
 
             } catch (Exception e) {
                 conn.rollback();
+                LOGGER.log(Level.SEVERE, "Erreur lors de la création de la matière première", e);
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
@@ -190,7 +195,9 @@ public class MatierePremiereDAO {
                 supprimerSortiesIdeales(conn, matiere.getId());
 
                 // Insérer les nouvelles sorties
-                creerSortiesIdeales(conn, matiere.getId(), matiere.getSortiesIdeales());
+                if (matiere.getSortiesIdeales() != null && !matiere.getSortiesIdeales().isEmpty()) {
+                    creerSortiesIdeales(conn, matiere.getId(), matiere.getSortiesIdeales());
+                }
 
                 conn.commit();
                 LOGGER.info("Matière première mise à jour : " + matiere.getNom());
@@ -225,6 +232,7 @@ public class MatierePremiereDAO {
             }
         }
     }
+
     public void supprimerDefinitivement(Long id) throws SQLException {
         String querySupprimerSorties = "DELETE FROM sorties_ideales WHERE matiere_premiere_id = ?";
         String querySupprimerMatiere = "DELETE FROM matieres_premieres WHERE id = ?";
@@ -260,6 +268,7 @@ public class MatierePremiereDAO {
             }
         }
     }
+
     private MatierePremiereModel mapResultSetToMatiere(ResultSet rs) throws SQLException {
         MatierePremiereModel matiere = new MatierePremiereModel();
         matiere.setId(rs.getLong("id"));
