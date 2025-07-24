@@ -131,11 +131,13 @@ public class TrackerController {
                     LocalTime localTime = timeField.getLocalTime();
                     if (localTime != null) {
                         production.setHeureProduction(localTime);
-                    } else {
-                        production.setHeureProduction(LocalTime.now());
+                        // ✅ Ne rien faire si l'heure n'est pas saisie
+                        // L'utilisateur doit explicitement saisir l'heure
                     }
+                    // ✅ On ne force plus LocalTime.now()
                 } catch (Exception e) {
-                    production.setHeureProduction(LocalTime.now());
+                    // ✅ En cas d'erreur, on ne force plus une heure par défaut
+                    LOGGER.log(Level.WARNING, "Erreur lors de la lecture de l'heure saisie", e);
                 }
 
                 // Mettre à jour l'entrée réelle
