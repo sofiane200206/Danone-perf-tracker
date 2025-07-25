@@ -101,7 +101,7 @@ public class TrackerController {
                     sortiesReellesFields.add(field);
 
                     // Listener pour ce champ
-                    field.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
+                    field.textProperty().addListener((obs, old, val) ->mettreAJourAffichageStatut());
                 }
             }
         }
@@ -110,86 +110,91 @@ public class TrackerController {
             datePicker.valueProperty().addListener((obs, old, val) -> {
                 if (val != null) {
                     production.setDateProduction(val);
-                    mettreAJourProduction();
+                    mettreAJourAffichageStatut(); // Juste l'affichage, pas de sauvegarde
                 }
             });
 
-            entreeReelle.textProperty().addListener((obs, old, val) -> mettreAJourProduction());
-        }
-
-        private void mettreAJourProduction() {
-            try {
-                // Mettre à jour la date
-                if (datePicker.getValue() != null) {
-                    production.setDateProduction(datePicker.getValue());
-                }
-
-                // Mettre à jour l'heure
+            entreeReelle.textProperty().addListener((obs, old, val) -> {
+                // Juste mettre à jour l'objet local, pas de sauvegarde
                 try {
-                    LocalTime localTime = timeField.getLocalTime();
-                    if (localTime != null) {
-                        production.setHeureProduction(localTime);
-                        // ✅ Ne rien faire si l'heure n'est pas saisie
-                        // L'utilisateur doit explicitement saisir l'heure
+                    if (!val.trim().isEmpty()) {
+                        double entree = Double.parseDouble(val.trim());
+                        production.setQuantiteEntreeReelle(entree);
                     }
-                    // ✅ On ne force plus LocalTime.now()
-                } catch (Exception e) {
-                    // ✅ En cas d'erreur, on ne force plus une heure par défaut
-                    LOGGER.log(Level.WARNING, "Erreur lors de la lecture de l'heure saisie", e);
-                }
+                } catch (NumberFormatException e) {
 
-                // Mettre à jour l'entrée réelle
-                if (!entreeReelle.getText().trim().isEmpty()) {
-                    double entree = Double.parseDouble(entreeReelle.getText().trim());
-                    production.setQuantiteEntreeReelle(entree);
+                    // Erreur silencieuse, sera gérée lors de la sauvegarde
                 }
+                mettreAJourAffichageStatut();
+            });
 
-                // Mettre à jour les sorties réelles
-                production.getSortiesReelles().clear();
-                for (int i = 0; i < sortiesReellesFields.size(); i++) {
-                    TextField field = sortiesReellesFields.get(i);
-                    if (!field.getText().trim().isEmpty()) {
-                        double quantite = Double.parseDouble(field.getText().trim());
-                        int numeroSortie = i + 1;
-                        production.ajouterSortieReelle(numeroSortie, quantite);
+            // Listeners pour les champs de sorties - juste modification locale
+            for (int i = 0; i < sortiesReellesFields.size(); i++) {
+                final int index = i;
+                TextField field = sortiesReellesFields.get(i);
+                field.textProperty().addListener((obs, old, val) -> {
+                    try {
+                        if (!val.trim().isEmpty()) {
+                            double quantite = Double.parseDouble(val.trim());
+                            int numeroSortie = index + 1;
+
+                            // Supprimer l'ancienne sortie de ce numéro
+                            production.getSortiesReelles().removeIf(s -> s.getNumeroSortie() == numeroSortie);
+                            // Ajouter la nouvelle
+                            production.ajouterSortieReelle(numeroSortie, quantite);
+                        }
+                    } catch (NumberFormatException e) {
+                        // Erreur silencieuse, sera gérée lors de la sauvegarde
                     }
+                    mettreAJourAffichageStatut();
+                });
+            }
+        }
+        public void sauvegarderProduction() {
+            try {
+                // Validation finale des données
+                if (!production.isDonneeComplete()) {
+                    resultatLabel.setText("⚠️ Impossible de sauvegarder - Manque: " + getChampManquants());
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
                 }
 
                 // Valider la production
                 production.validerProduction();
 
-                // Sauvegarder seulement si les données sont complètes
-                if (production.isDonneeComplete()) {
-                    try {
-                        // Distinguer entre création et mise à jour
-                        if (production.getId() == null) {
-                            productionService.ajouterProduction(production);
-                            resultatLabel.setText("✅ Production créée - ID: " + production.getId());
-                        } else {
-                            productionService.mettreAJourProduction(production); // ← FIX
-                            resultatLabel.setText("✅ Production mise à jour - ID: " + production.getId());
-                        }
-                        resultatLabel.setTextFill(Color.GREEN);
-
-                    } catch (ServiceException e) {
-                        resultatLabel.setText("⚠️ Erreur sauvegarde: " + e.getMessage());
-                        resultatLabel.setTextFill(Color.RED);
-                        LOGGER.log(Level.WARNING, "Erreur lors de la sauvegarde", e);
-                    }
+                // Sauvegarder selon le contexte (création vs mise à jour)
+                if (production.getId() == null) {
+                    // Nouvelle production
+                    productionService.ajouterProduction(production);
+                    resultatLabel.setText("✅ Production créée - ID: " + production.getId());
+                    LOGGER.info("Nouvelle production créée avec ID: " + production.getId());
                 } else {
-                    resultatLabel.setText("⏳ Production incomplète - Manque: " + getChampManquants());
-                    resultatLabel.setTextFill(Color.ORANGE);
+                    // Mise à jour d'une production existante
+                    productionService.mettreAJourProduction(production);
+                    resultatLabel.setText("✅ Production mise à jour - ID: " + production.getId());
+                    LOGGER.info("Production mise à jour - ID: " + production.getId());
                 }
 
+                resultatLabel.setTextFill(Color.GREEN);
+
+                // Recalculer les performances après sauvegarde
+                calculerPerformances();
+
+            } catch (ServiceException e) {
+                resultatLabel.setText("❌ Erreur sauvegarde: " + e.getMessage());
+                resultatLabel.setTextFill(Color.RED);
+                LOGGER.log(Level.WARNING, "Erreur lors de la sauvegarde", e);
             } catch (NumberFormatException e) {
                 resultatLabel.setText("❌ Erreur : valeurs numériques invalides");
                 resultatLabel.setTextFill(Color.RED);
             } catch (Exception e) {
                 resultatLabel.setText("❌ Erreur inattendue : " + e.getMessage());
                 resultatLabel.setTextFill(Color.RED);
-                LOGGER.log(Level.SEVERE, "Erreur lors de la mise à jour de la production", e);
+                LOGGER.log(Level.SEVERE, "Erreur lors de la sauvegarde de la production", e);
             }
         }
+
+
 
         // Méthode helper pour debug
         private String getChampManquants() {
@@ -218,11 +223,21 @@ public class TrackerController {
 
                 container.getChildren().add(resultatLabel);
 
-                // Bouton de suppression
+                // NOUVELLE LIGNE : Boutons d'action
+                HBox boutons = new HBox(10);
+
+                // Bouton Sauvegarder
+                Button btnSauvegarder = new Button("💾 Sauvegarder");
+                btnSauvegarder.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                btnSauvegarder.setOnAction(e -> sauvegarderProduction());
+
+                // Bouton Supprimer
                 Button btnSupprimer = new Button("🗑️ Supprimer");
                 btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
                 btnSupprimer.setOnAction(e -> supprimerProduction());
-                container.getChildren().add(btnSupprimer);
+
+                boutons.getChildren().addAll(btnSauvegarder, btnSupprimer);
+                container.getChildren().add(boutons);
             }
             return container;
         }
@@ -286,20 +301,40 @@ public class TrackerController {
         }
 
         public void mettreAJourAffichageStatut() {
+            try {
+                // Mettre à jour l'heure si saisie
+                LocalTime localTime = timeField.getLocalTime();
+                if (localTime != null) {
+                    production.setHeureProduction(localTime);
+                }
+            } catch (Exception e) {
+                // Heure non saisie ou invalide, on continue
+            }
+
+            // Affichage du statut sans sauvegarde
             if (production.getId() != null) {
-                if (production.isValide()) {
-                    resultatLabel.setText("✅ Production chargée - ID: " + production.getId() +
-                            " (Statut: " + production.getStatut() + ")");
-                    resultatLabel.setTextFill(Color.GREEN);
+                // Production existante
+                if (production.isDonneeComplete()) {
+                    resultatLabel.setText("✏️ Production modifiée - ID: " + production.getId() +
+                            " (cliquez 'Sauvegarder' pour confirmer)");
+                    resultatLabel.setTextFill(Color.ORANGE);
                 } else {
-                    resultatLabel.setText("⚠️ Production incomplète - ID: " + production.getId());
+                    resultatLabel.setText("⚠️ Production incomplète - ID: " + production.getId() +
+                            " - Manque: " + getChampManquants());
                     resultatLabel.setTextFill(Color.ORANGE);
                 }
             } else {
-                resultatLabel.setText("⏳ Nouvelle production - en attente de saisie...");
-                resultatLabel.setTextFill(Color.GRAY);
+                // Nouvelle production
+                if (production.isDonneeComplete()) {
+                    resultatLabel.setText("📝 Prêt à sauvegarder - Cliquez 'Sauvegarder'");
+                    resultatLabel.setTextFill(Color.BLUE);
+                } else {
+                    resultatLabel.setText("⏳ Nouvelle production - Manque: " + getChampManquants());
+                    resultatLabel.setTextFill(Color.GRAY);
+                }
             }
         }
+
         // Méthode de test temporaire
 
         public void actualiserAffichage() {
@@ -345,6 +380,7 @@ public class TrackerController {
 
                 // Re-setup des listeners
                 setupListeners();
+                mettreAJourAffichageStatut();
             }
         }
     }
@@ -566,13 +602,13 @@ public class TrackerController {
             }
         }
 
-        // Mettre à jour le label avec le statut
+        // CHANGEMENT : Appeler la nouvelle méthode d'affichage
         productionUI.mettreAJourAffichageStatut();
 
         // Ajouter à la liste et à l'interface
         listeProductionUI.add(productionUI);
 
-        // Insérer avant le bouton d'ajout (qui est toujours en dernier)
+        // Insérer avant le bouton d'ajout
         int indexInsertion = joursContainer.getChildren().size() - 1;
         if (indexInsertion < 0) indexInsertion = 0;
 
@@ -604,27 +640,26 @@ public class TrackerController {
     @FXML
     public void ajouterProduction() {
         if (matiereActuelle == null) {
-            afficherErreur("Matière non sélectionnée", "Veuillez d'abord sélectionner ou créer une matière première.");
+            afficherErreur("Matière non sélectionnée",
+                    "Veuillez d'abord sélectionner ou créer une matière première.");
             return;
         }
 
         try {
             ProductionModel production = new ProductionModel();
-            // Ne pas assigner d'ID ici - il sera généré par la base de données
             production.setMatierePremiereId(matiereActuelle.getId());
             production.setDateProduction(LocalDate.now());
 
             ProductionUI productionUI = new ProductionUI(production);
             listeProductionUI.add(productionUI);
 
-            // Insérer avant les boutons (ajout et calculer)
+            // Insérer avant les boutons
             int indexInsertion = joursContainer.getChildren().size() - 1;
             if (boutonCalculerExiste()) {
                 indexInsertion = joursContainer.getChildren().size() - 2;
             }
 
             joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());
-
             compteurProductions++;
 
             if (compteurProductions == 2 && !boutonCalculerExiste()) {
@@ -944,75 +979,6 @@ public class TrackerController {
             LOGGER.log(Level.SEVERE, "Erreur inattendue lors de l'export", e);
             afficherErreur("Erreur inattendue",
                     "Une erreur inattendue s'est produite lors de l'export:\n" + e.getMessage());
-        }
-    }
-
-    // 6. OPTIONNEL: Ajouter une méthode pour export rapide (bouton alternatif)
-    @FXML
-    public void exportRapideVersExcel() {
-        if (matiereActuelle == null) {
-            afficherErreur("Aucune matière sélectionnée",
-                    "Veuillez d'abord sélectionner une matière première à exporter.");
-            return;
-        }
-
-        try {
-            // Export direct vers le bureau avec nom automatique
-            String userHome = System.getProperty("user.home");
-            String nomFichier = String.format("Production_%s_%s.xlsx",
-                    matiereActuelle.getNom().replaceAll("[^a-zA-Z0-9]", "_"),
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm")));
-
-            String cheminFichier = userHome + File.separator + "Desktop" + File.separator + nomFichier;
-
-            // Si le bureau n'existe pas, utiliser le répertoire utilisateur
-            File bureauDir = new File(userHome, "Desktop");
-            if (!bureauDir.exists()) {
-                cheminFichier = userHome + File.separator + nomFichier;
-            }
-
-            excelExportService.exporterProductions(matiereActuelle, cheminFichier);
-
-            afficherInfo("Export rapide réussi",
-                    String.format("Fichier exporté vers:\n%s", cheminFichier));
-
-        } catch (ServiceException e) {
-            LOGGER.log(Level.SEVERE, "Erreur lors de l'export rapide", e);
-            afficherErreur("Erreur d'export", e.getMessage());
-        }
-    }
-    public void supprimerMatiere(MatierePremiereModel matiere) {
-        if (matiere == null) {
-            return;
-        }
-
-        // Si c'est la matière actuelle, utiliser la méthode principale
-        if (matiere.equals(matiereActuelle)) {
-            supprimerMatiereActuelle();
-            return;
-        }
-
-        // Sinon, suppression directe
-        try {
-            int nbProductions = matiereService.compterProductionsAssociees(matiere.getId());
-
-            String message = "Supprimer '" + matiere.getNom() + "' ?";
-            if (nbProductions > 0) {
-                message += "\n⚠️ " + nbProductions + " production(s) seront aussi supprimées !";
-            }
-
-            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-            confirmation.setContentText(message);
-
-            Optional<ButtonType> resultat = confirmation.showAndWait();
-            if (resultat.isPresent() && resultat.get() == ButtonType.OK) {
-                matiereService.supprimerDefinitivement(matiere.getId());
-                chargerMatieresPremieres(); // Recharger la liste
-                afficherInfo("Supprimé", "Matière première supprimée avec succès.");
-            }
-
-        } catch (ServiceException e) {
-            afficherErreur("Erreur", "Impossible de supprimer : " + e.getMessage());
         }
     }
 
