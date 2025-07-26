@@ -86,8 +86,6 @@ public class TrackerController {
             // Créer les champs de sorties selon la matière première
             creerChampsSorties();
 
-            // Listeners
-            setupListeners();
         }
 
         private void creerChampsSorties() {
@@ -106,93 +104,155 @@ public class TrackerController {
             }
         }
 
-        private void setupListeners() {
-            datePicker.valueProperty().addListener((obs, old, val) -> {
-                if (val != null) {
-                    production.setDateProduction(val);
-                    mettreAJourAffichageStatut(); // Juste l'affichage, pas de sauvegarde
-                }
-            });
-
-            entreeReelle.textProperty().addListener((obs, old, val) -> {
-                // Juste mettre à jour l'objet local, pas de sauvegarde
-                try {
-                    if (!val.trim().isEmpty()) {
-                        double entree = Double.parseDouble(val.trim());
-                        production.setQuantiteEntreeReelle(entree);
-                    }
-                } catch (NumberFormatException e) {
-
-                    // Erreur silencieuse, sera gérée lors de la sauvegarde
-                }
-                mettreAJourAffichageStatut();
-            });
-
-            // Listeners pour les champs de sorties - juste modification locale
-            for (int i = 0; i < sortiesReellesFields.size(); i++) {
-                final int index = i;
-                TextField field = sortiesReellesFields.get(i);
-                field.textProperty().addListener((obs, old, val) -> {
-                    try {
-                        if (!val.trim().isEmpty()) {
-                            double quantite = Double.parseDouble(val.trim());
-                            int numeroSortie = index + 1;
-
-                            // Supprimer l'ancienne sortie de ce numéro
-                            production.getSortiesReelles().removeIf(s -> s.getNumeroSortie() == numeroSortie);
-                            // Ajouter la nouvelle
-                            production.ajouterSortieReelle(numeroSortie, quantite);
-                        }
-                    } catch (NumberFormatException e) {
-                        // Erreur silencieuse, sera gérée lors de la sauvegarde
-                    }
-                    mettreAJourAffichageStatut();
-                });
-            }
-        }
         public void sauvegarderProduction() {
             try {
-                // Validation finale des données
+                // ✅ NOUVEAU : Validation de la date
+                LocalDate dateProduction = datePicker.getValue();
+                if (dateProduction == null) {
+                    resultatLabel.setText("⚠️ Veuillez sélectionner une date");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                // ✅ NOUVEAU : Validation date cohérente
+                if (dateProduction.isAfter(LocalDate.now())) {
+                    resultatLabel.setText("⚠️ La date ne peut pas être dans le futur");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                if (dateProduction.isBefore(LocalDate.now().minusYears(1))) {
+                    resultatLabel.setText("⚠️ La date ne peut pas être antérieure à 1 an");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                production.setDateProduction(dateProduction);
+
+                // ✅ NOUVEAU : Validation de l'heure
+                LocalTime heureProduction = timeField.getLocalTime();
+                if (heureProduction == null) {
+                    resultatLabel.setText("⚠️ Veuillez saisir une heure valide");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                production.setHeureProduction(heureProduction);
+
+                // ✅ VALIDATION AMÉLIORÉE DE L'ENTRÉE RÉELLE
+                String entreeText = entreeReelle.getText().trim();
+                if (entreeText.isEmpty()) {
+                    resultatLabel.setText("⚠️ Veuillez saisir la quantité d'entrée réelle");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                double quantiteEntree;
+                try {
+                    quantiteEntree = Double.parseDouble(entreeText);
+                } catch (NumberFormatException e) {
+                    resultatLabel.setText("⚠️ La quantité d'entrée doit être un nombre valide");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                if (quantiteEntree <= 0) {
+                    resultatLabel.setText("⚠️ La quantité d'entrée doit être positive");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                // ✅ NOUVEAU : Validation par rapport à l'idéal
+                if (matiereActuelle != null) {
+                    double entreeIdeale = matiereActuelle.getQuantiteEntreeIdeale();
+                    if (quantiteEntree > entreeIdeale * 2) {
+                        resultatLabel.setText("⚠️ Entrée très éloignée de l'idéal (" + entreeIdeale + "kg). Confirmez la valeur.");
+                        resultatLabel.setTextFill(Color.ORANGE);
+                        // On ne return pas, on laisse continuer avec un avertissement
+                    }
+                }
+
+                production.setQuantiteEntreeReelle(quantiteEntree);
+
+                // ✅ VALIDATION AMÉLIORÉE DES SORTIES
+                production.getSortiesReelles().clear();
+                double totalSorties = 0;
+
+                for (int i = 0; i < sortiesReellesFields.size(); i++) {
+                    String sortieText = sortiesReellesFields.get(i).getText().trim();
+
+                    if (sortieText.isEmpty()) {
+                        resultatLabel.setText("⚠️ Veuillez saisir toutes les sorties réelles");
+                        resultatLabel.setTextFill(Color.RED);
+                        return;
+                    }
+
+                    double quantiteSortie;
+                    try {
+                        quantiteSortie = Double.parseDouble(sortieText);
+                    } catch (NumberFormatException e) {
+                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " doit être un nombre valide");
+                        resultatLabel.setTextFill(Color.RED);
+                        return;
+                    }
+
+                    if (quantiteSortie < 0) {
+                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " ne peut pas être négative");
+                        resultatLabel.setTextFill(Color.RED);
+                        return;
+                    }
+
+                    if (quantiteSortie > quantiteEntree) {
+                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " (" + quantiteSortie + "kg) ne peut pas dépasser l'entrée (" + quantiteEntree + "kg)");
+                        resultatLabel.setTextFill(Color.RED);
+                        return;
+                    }
+
+                    totalSorties += quantiteSortie;
+                    production.ajouterSortieReelle(i + 1, quantiteSortie);
+                }
+
+                // ✅ NOUVEAU : Validation cohérence globale des sorties
+                if (totalSorties > quantiteEntree * 1.05) { // Tolérance de 5%
+                    resultatLabel.setText("⚠️ Le total des sorties (" + totalSorties + "kg) dépasse l'entrée (" + quantiteEntree + "kg)");
+                    resultatLabel.setTextFill(Color.RED);
+                    return;
+                }
+
+                // ✅ VALIDATION FINALE (reste identique)
                 if (!production.isDonneeComplete()) {
                     resultatLabel.setText("⚠️ Impossible de sauvegarder - Manque: " + getChampManquants());
                     resultatLabel.setTextFill(Color.RED);
                     return;
                 }
 
-                // Valider la production
+                // Valider et sauvegarder (reste identique)
                 production.validerProduction();
 
-                // Sauvegarder selon le contexte (création vs mise à jour)
                 if (production.getId() == null) {
-                    // Nouvelle production
                     productionService.ajouterProduction(production);
                     resultatLabel.setText("✅ Production créée - ID: " + production.getId());
                     LOGGER.info("Nouvelle production créée avec ID: " + production.getId());
                 } else {
-                    // Mise à jour d'une production existante
                     productionService.mettreAJourProduction(production);
                     resultatLabel.setText("✅ Production mise à jour - ID: " + production.getId());
                     LOGGER.info("Production mise à jour - ID: " + production.getId());
                 }
 
                 resultatLabel.setTextFill(Color.GREEN);
-
-                // Recalculer les performances après sauvegarde
                 calculerPerformances();
 
             } catch (ServiceException e) {
                 resultatLabel.setText("❌ Erreur sauvegarde: " + e.getMessage());
                 resultatLabel.setTextFill(Color.RED);
                 LOGGER.log(Level.WARNING, "Erreur lors de la sauvegarde", e);
-            } catch (NumberFormatException e) {
-                resultatLabel.setText("❌ Erreur : valeurs numériques invalides");
-                resultatLabel.setTextFill(Color.RED);
             } catch (Exception e) {
                 resultatLabel.setText("❌ Erreur inattendue : " + e.getMessage());
                 resultatLabel.setTextFill(Color.RED);
                 LOGGER.log(Level.SEVERE, "Erreur lors de la sauvegarde de la production", e);
             }
         }
+
 
 
 
@@ -379,7 +439,7 @@ public class TrackerController {
                 }
 
                 // Re-setup des listeners
-                setupListeners();
+
                 mettreAJourAffichageStatut();
             }
         }
@@ -463,50 +523,135 @@ public class TrackerController {
     @FXML
     public void creerNouvelleMatiere() {
         try {
+            // ✅ VALIDATION DU NOM
             String nom = matierePremiereField.getText().trim();
             if (nom.isEmpty()) {
                 afficherErreur("Nom manquant", "Veuillez saisir le nom de la matière première.");
                 return;
             }
 
+            // ✅ NOUVEAU : Validation longueur et caractères
+            if (nom.length() < 2) {
+                afficherErreur("Nom trop court", "Le nom doit contenir au moins 2 caractères.");
+                return;
+            }
+
+            if (nom.length() > 50) {
+                afficherErreur("Nom trop long", "Le nom ne peut pas dépasser 50 caractères.");
+                return;
+            }
+
+            // ✅ NOUVEAU : Vérifier les doublons
+
+
+            // ✅ VALIDATION DE LA QUANTITÉ D'ENTRÉE
             String entreeText = quantiteEntreeIdealeField.getText().trim();
             if (entreeText.isEmpty()) {
                 afficherErreur("Quantité manquante", "Veuillez saisir la quantité d'entrée idéale.");
                 return;
             }
+            // ✅ Vérifier les doublons
+            if (matiereService.nomExiste(nom)) {
+                afficherErreur("Nom déjà utilisé",
+                        "Une matière première avec ce nom existe déjà. Veuillez choisir un autre nom.");
+                return;
+            }
+            double quantiteEntreeIdeale;
+            try {
+                quantiteEntreeIdeale = Double.parseDouble(entreeText);
+            } catch (NumberFormatException e) {
+                afficherErreur("Valeur invalide", "La quantité d'entrée doit être un nombre valide.");
+                return;
+            }
 
-            double quantiteEntreeIdeale = Double.parseDouble(entreeText);
+            // ✅ NOUVEAU : Validation des valeurs
+            if (quantiteEntreeIdeale <= 0) {
+                afficherErreur("Valeur invalide", "La quantité d'entrée doit être positive.");
+                return;
+            }
+
+            if (quantiteEntreeIdeale > 10000) {
+                afficherErreur("Valeur trop élevée", "La quantité d'entrée ne peut pas dépasser 10 000 kg.");
+                return;
+            }
+
             int nombreSorties = nombreSortiesSpinner.getValue();
 
-            // ✅ CORRECTION : Créer d'abord TOUTES les sorties idéales
+            // ✅ VALIDATION DES SORTIES AVEC DÉTAILS
             List<SortieIdeale> sortiesIdeales = new ArrayList<>();
+            double totalSorties = 0;
+
             for (int i = 0; i < nombreSorties; i++) {
                 String quantiteText = champsSortiesIdeales.get(i * 2).getText().trim();
                 String nomSortie = champsSortiesIdeales.get(i * 2 + 1).getText().trim();
 
+                // Validation quantité sortie
                 if (quantiteText.isEmpty()) {
-                    afficherErreur("Sortie manquante", "Veuillez saisir la quantité pour la sortie " + (i + 1));
+                    afficherErreur("Sortie manquante",
+                            "Veuillez saisir la quantité pour la sortie " + (i + 1));
                     return;
                 }
 
-                double quantite = Double.parseDouble(quantiteText);
-                sortiesIdeales.add(new SortieIdeale(i + 1, quantite, nomSortie.isEmpty() ? "Sortie " + (i + 1) : nomSortie));
+                double quantite;
+                try {
+                    quantite = Double.parseDouble(quantiteText);
+                } catch (NumberFormatException e) {
+                    afficherErreur("Valeur invalide",
+                            "La quantité de la sortie " + (i + 1) + " doit être un nombre valide.");
+                    return;
+                }
+
+                if (quantite <= 0) {
+                    afficherErreur("Valeur invalide",
+                            "La quantité de la sortie " + (i + 1) + " doit être positive.");
+                    return;
+                }
+
+                if (quantite > quantiteEntreeIdeale) {
+                    afficherErreur("Valeur incohérente",
+                            "La sortie " + (i + 1) + " (" + quantite + "kg) ne peut pas être supérieure à l'entrée (" + quantiteEntreeIdeale + "kg).");
+                    return;
+                }
+
+                // Validation nom sortie
+                if (nomSortie.isEmpty()) {
+                    nomSortie = "Sortie " + (i + 1); // Nom par défaut
+                } else if (nomSortie.length() > 30) {
+                    afficherErreur("Nom trop long",
+                            "Le nom de la sortie " + (i + 1) + " ne peut pas dépasser 30 caractères.");
+                    return;
+                }
+
+                // ✅ NOUVEAU : Vérifier les doublons de noms de sorties
+                for (SortieIdeale sortieExistante : sortiesIdeales) {
+                    if (sortieExistante.getNomSortie().equalsIgnoreCase(nomSortie)) {
+                        afficherErreur("Noms de sorties dupliqués",
+                                "Le nom '" + nomSortie + "' est utilisé plusieurs fois. Chaque sortie doit avoir un nom unique.");
+                        return;
+                    }
+                }
+
+                totalSorties += quantite;
+                sortiesIdeales.add(new SortieIdeale(i + 1, quantite, nomSortie));
             }
 
-            // ✅ Maintenant créer la matière première avec TOUTES les sorties
+            // ✅ NOUVEAU : Validation cohérence globale
+            if (totalSorties > quantiteEntreeIdeale * 1.1) { // Tolérance de 10%
+                afficherErreur("Incohérence des quantités",
+                        String.format("Le total des sorties (%.2fkg) dépasse largement l'entrée (%.2fkg). " +
+                                "Vérifiez vos valeurs.", totalSorties, quantiteEntreeIdeale));
+                return;
+            }
+
+            // ✅ Création de la matière première (reste identique)
             MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
                     nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
-
-            // ✅ S'assurer que la matière a un ID
-
 
             // Actualiser la liste et sélectionner la nouvelle matière
             chargerMatieresPremieres();
             matierePremiereCombo.setValue(matiere);
 
             afficherInfo("Succès", "Matière première créée avec succès !");
-
-            // Vider les champs
             viderChampsSaisie();
 
         } catch (NumberFormatException e) {
@@ -854,6 +999,7 @@ public class TrackerController {
         }
 
         try {
+            String nomMatiereASupprimer = matiereActuelle.getNom();
             // Compter les productions associées
             int nbProductions = matiereService.compterProductionsAssociees(matiereActuelle.getId());
 
@@ -898,7 +1044,7 @@ public class TrackerController {
                 chargerMatieresPremieres();
 
                 afficherInfo("Suppression réussie",
-                        "La matière première '" + matiereActuelle + "' et ses " +
+                        "La matière première '" + nomMatiereASupprimer + "' et ses " +
                                 nbProductions + " production(s) ont été supprimées avec succès.");
 
             } else {

@@ -80,7 +80,19 @@ public class MatierePremiereService {
             throw new ServiceException("Erreur lors de la récupération des données : " + e.getMessage(), e);
         }
     }
-
+    /**
+     * Vérifie si une matière première avec ce nom existe déjà
+     */
+    public boolean nomExiste(String nom) throws ServiceException {
+        try {
+            List<MatierePremiereModel> matieres = listerMatieresActives();
+            return matieres.stream()
+                    .anyMatch(matiere -> matiere.getNom().equalsIgnoreCase(nom.trim()));
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Erreur lors de la vérification du nom", e);
+            throw new ServiceException("Impossible de vérifier l'unicité du nom : " + e.getMessage());
+        }
+    }
     /**
      * Trouve une matière première par son ID
      */
