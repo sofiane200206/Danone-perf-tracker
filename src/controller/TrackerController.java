@@ -96,13 +96,16 @@ public class TrackerController {
                     TextField field = new TextField();
                     field.setPromptText("Sortie " + sortieIdeale.getNumeroSortie() +
                             " (" + sortieIdeale.getNomSortie() + ") - réelle");
+
+                    // LIGNE MANQUANTE À AJOUTER :
                     sortiesReellesFields.add(field);
 
                     // Listener pour ce champ
-                    field.textProperty().addListener((obs, old, val) ->mettreAJourAffichageStatut());
-                }
+                    field.textProperty().addListener((obs, old, val) -> mettreAJourAffichageStatut());
+                    System.out.println("Champs de sorties créés : " + sortiesReellesFields.size());}
             }
         }
+
 
         public void sauvegarderProduction() {
             try {
@@ -213,11 +216,7 @@ public class TrackerController {
                 }
 
                 // ✅ NOUVEAU : Validation cohérence globale des sorties
-                if (totalSorties > quantiteEntree * 1.05) { // Tolérance de 5%
-                    resultatLabel.setText("⚠️ Le total des sorties (" + totalSorties + "kg) dépasse l'entrée (" + quantiteEntree + "kg)");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
+
 
                 // ✅ VALIDATION FINALE (reste identique)
                 if (!production.isDonneeComplete()) {
@@ -240,6 +239,8 @@ public class TrackerController {
                 }
 
                 resultatLabel.setTextFill(Color.GREEN);
+                System.out.println("Avant désactivation - Nombre de champs de sorties : " + sortiesReellesFields.size());
+                desactiverChampsSaisie();
                 calculerPerformances();
 
             } catch (ServiceException e) {
@@ -254,7 +255,16 @@ public class TrackerController {
         }
 
 
+        private void desactiverChampsSaisie() {
+            datePicker.setDisable(true);
+            timeField.setDisable(true);
+            entreeReelle.setDisable(true);
 
+            for (TextField field : sortiesReellesFields) {
+                field.setDisable(true);
+            }
+            System.out.println("Nombre de champs de sorties désactivés : " + sortiesReellesFields.size());
+        }
 
         // Méthode helper pour debug
         private String getChampManquants() {
@@ -362,13 +372,55 @@ public class TrackerController {
 
         public void mettreAJourAffichageStatut() {
             try {
+                // Mettre à jour la date si saisie
+                LocalDate dateProduction = datePicker.getValue();
+                if (dateProduction != null) {
+                    production.setDateProduction(dateProduction);
+                }
+
                 // Mettre à jour l'heure si saisie
                 LocalTime localTime = timeField.getLocalTime();
                 if (localTime != null) {
                     production.setHeureProduction(localTime);
                 }
+
+                // NOUVEAU : Mettre à jour l'entrée réelle
+                String entreeText = entreeReelle.getText().trim();
+                if (!entreeText.isEmpty()) {
+                    try {
+                        double quantiteEntree = Double.parseDouble(entreeText);
+                        if (quantiteEntree > 0) {
+                            production.setQuantiteEntreeReelle(quantiteEntree);
+                        }
+                    } catch (NumberFormatException e) {
+                        // Valeur invalide, on ne met pas à jour
+                    }
+                }
+
+                // NOUVEAU : Mettre à jour les sorties réelles
+                production.getSortiesReelles().clear();
+                boolean toutesLesRortiesRemplies = true;
+
+                for (int i = 0; i < sortiesReellesFields.size(); i++) {
+                    String sortieText = sortiesReellesFields.get(i).getText().trim();
+
+                    if (!sortieText.isEmpty()) {
+                        try {
+                            double quantiteSortie = Double.parseDouble(sortieText);
+                            if (quantiteSortie >= 0) {
+                                production.ajouterSortieReelle(i + 1, quantiteSortie);
+                            }
+                        } catch (NumberFormatException e) {
+                            // Valeur invalide, on ignore cette sortie
+                            toutesLesRortiesRemplies = false;
+                        }
+                    } else {
+                        toutesLesRortiesRemplies = false;
+                    }
+                }
+
             } catch (Exception e) {
-                // Heure non saisie ou invalide, on continue
+                // En cas d'erreur, on continue avec l'affichage
             }
 
             // Affichage du statut sans sauvegarde
@@ -407,6 +459,9 @@ public class TrackerController {
                     sortiesTexts.add(field.getText());
                 }
 
+                // NOUVEAU : Mémoriser si la production était déjà sauvegardée
+                boolean etaitSauvegardee = (production.getId() != null);
+
                 // Recréer les champs
                 creerChampsSorties();
 
@@ -427,10 +482,21 @@ public class TrackerController {
 
                 container.getChildren().add(resultatLabel);
 
+                // NOUVELLE LIGNE : Boutons d'action
+                HBox boutons = new HBox(10);
+
+                // Bouton Sauvegarder
+                Button btnSauvegarder = new Button("💾 Sauvegarder");
+                btnSauvegarder.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                btnSauvegarder.setOnAction(e -> sauvegarderProduction());
+
+                // Bouton Supprimer
                 Button btnSupprimer = new Button("🗑️ Supprimer");
                 btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
                 btnSupprimer.setOnAction(e -> supprimerProduction());
-                container.getChildren().add(btnSupprimer);
+
+                boutons.getChildren().addAll(btnSauvegarder, btnSupprimer);
+                container.getChildren().add(boutons);
 
                 // Restaurer les valeurs
                 entreeReelle.setText(entreeText);
@@ -438,12 +504,15 @@ public class TrackerController {
                     sortiesReellesFields.get(i).setText(sortiesTexts.get(i));
                 }
 
-                // Re-setup des listeners
+                // NOUVEAU : Redésactiver les champs si la production était sauvegardée
+                if (etaitSauvegardee) {
+                    desactiverChampsSaisie();
+                }
 
+                // Re-setup des listeners
                 mettreAJourAffichageStatut();
             }
-        }
-    }
+        }}
 
     @FXML
     public void initialize() {
@@ -749,7 +818,9 @@ public class TrackerController {
 
         // CHANGEMENT : Appeler la nouvelle méthode d'affichage
         productionUI.mettreAJourAffichageStatut();
-
+        if (production.getId() != null) {
+            productionUI.desactiverChampsSaisie();
+        }
         // Ajouter à la liste et à l'interface
         listeProductionUI.add(productionUI);
 
@@ -798,10 +869,17 @@ public class TrackerController {
             ProductionUI productionUI = new ProductionUI(production);
             listeProductionUI.add(productionUI);
 
-            // Insérer avant les boutons
-            int indexInsertion = joursContainer.getChildren().size() - 1;
+            // CORRECTION : Calculer correctement l'index d'insertion
+            int indexInsertion = joursContainer.getChildren().size();
+
+            // S'il y a un bouton "Ajouter Production", on insert avant lui
+            if (indexInsertion > 0) {
+                indexInsertion = indexInsertion - 1;
+            }
+
+            // S'il y a aussi un bouton "Calculer", on insert avant lui aussi
             if (boutonCalculerExiste()) {
-                indexInsertion = joursContainer.getChildren().size() - 2;
+                indexInsertion = indexInsertion - 1;
             }
 
             joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());

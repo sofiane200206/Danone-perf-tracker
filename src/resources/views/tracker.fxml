@@ -140,14 +140,7 @@
                             </padding>
 
                             <!-- Message d'aide initial -->
-                            <VBox alignment="CENTER" spacing="10.0" style="-fx-background-color: #e8f5e8; -fx-padding: 30; -fx-border-color: #c3e6c3; -fx-border-width: 1; -fx-border-radius: 8;">
-                                <Label text="🚀 Commencez par créer ou sélectionner une matière première" textFill="#155724">
-                                    <font>
-                                        <Font name="System Bold" size="16.0" />
-                                    </font>
-                                </Label>
-                                <Label text="Puis ajoutez vos productions pour suivre les performances en temps réel !" textFill="#155724" wrapText="true" textAlignment="CENTER" />
-                            </VBox>
+
                         </VBox>
                     </content>
                 </ScrollPane>
