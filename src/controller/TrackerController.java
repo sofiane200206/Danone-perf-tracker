@@ -300,7 +300,10 @@ public class TrackerController {
                 Button btnSauvegarder = new Button("💾 Sauvegarder");
                 btnSauvegarder.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
                 btnSauvegarder.setOnAction(e -> sauvegarderProduction());
-
+                // Bouton Modifier
+                Button btnModifier = new Button("✏️ Modifier");
+                btnModifier.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+                btnModifier.setOnAction(e -> activerModeModification());
                 // Bouton Supprimer
                 Button btnSupprimer = new Button("🗑️ Supprimer");
                 btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
@@ -446,7 +449,23 @@ public class TrackerController {
                 }
             }
         }
+        private void activerModeModification() {
+            // Réactiver tous les champs de saisie
+            datePicker.setDisable(false);
+            timeField.setDisable(false);
+            entreeReelle.setDisable(false);
 
+            for (TextField field : sortiesReellesFields) {
+                field.setDisable(false);
+            }
+
+            // Mettre à jour le message
+            resultatLabel.setText("✏️ Mode modification activé - ID: " + production.getId() +
+                    " (modifiez les valeurs puis cliquez 'Sauvegarder')");
+            resultatLabel.setTextFill(Color.BLUE);
+
+            LOGGER.info("Mode modification activé pour la production ID: " + production.getId());
+        }
         // Méthode de test temporaire
 
         public void actualiserAffichage() {
@@ -459,7 +478,7 @@ public class TrackerController {
                     sortiesTexts.add(field.getText());
                 }
 
-                // NOUVEAU : Mémoriser si la production était déjà sauvegardée
+                // Mémoriser si la production était déjà sauvegardée
                 boolean etaitSauvegardee = (production.getId() != null);
 
                 // Recréer les champs
@@ -482,7 +501,7 @@ public class TrackerController {
 
                 container.getChildren().add(resultatLabel);
 
-                // NOUVELLE LIGNE : Boutons d'action
+                // Boutons d'action (MODIFIÉ pour inclure le bouton Modifier)
                 HBox boutons = new HBox(10);
 
                 // Bouton Sauvegarder
@@ -490,12 +509,17 @@ public class TrackerController {
                 btnSauvegarder.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
                 btnSauvegarder.setOnAction(e -> sauvegarderProduction());
 
+                // Bouton Modifier (NOUVEAU)
+                Button btnModifier = new Button("✏️ Modifier");
+                btnModifier.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+                btnModifier.setOnAction(e -> activerModeModification());
+
                 // Bouton Supprimer
                 Button btnSupprimer = new Button("🗑️ Supprimer");
                 btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
                 btnSupprimer.setOnAction(e -> supprimerProduction());
 
-                boutons.getChildren().addAll(btnSauvegarder, btnSupprimer);
+                boutons.getChildren().addAll(btnSauvegarder, btnModifier, btnSupprimer);
                 container.getChildren().add(boutons);
 
                 // Restaurer les valeurs
@@ -504,7 +528,7 @@ public class TrackerController {
                     sortiesReellesFields.get(i).setText(sortiesTexts.get(i));
                 }
 
-                // NOUVEAU : Redésactiver les champs si la production était sauvegardée
+                // Redésactiver les champs si la production était sauvegardée
                 if (etaitSauvegardee) {
                     desactiverChampsSaisie();
                 }
@@ -512,7 +536,9 @@ public class TrackerController {
                 // Re-setup des listeners
                 mettreAJourAffichageStatut();
             }
-        }}
+
+        }
+    }
 
     @FXML
     public void initialize() {
@@ -718,7 +744,11 @@ public class TrackerController {
 
             // Actualiser la liste et sélectionner la nouvelle matière
             chargerMatieresPremieres();
-            matierePremiereCombo.setValue(matiere);
+            // Sélectionner sans déclencher le listener
+            matierePremiereCombo.getSelectionModel().select(matiere);
+            matiereActuelle = matiere;
+            productionService.setMatierePremiereModel(matiere);
+            labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
 
             afficherInfo("Succès", "Matière première créée avec succès !");
             viderChampsSaisie();
@@ -909,6 +939,7 @@ public class TrackerController {
         btnCalculer.setOnAction(e -> calculerPerformances());
         joursContainer.getChildren().add(btnCalculer);
     }
+
 
     @FXML
     public void appliquerFiltre() {
