@@ -868,26 +868,29 @@ public class TrackerController {
 
             ProductionUI productionUI = new ProductionUI(production);
             listeProductionUI.add(productionUI);
-
-            // CORRECTION : Calculer correctement l'index d'insertion
+            // ALTERNATIVE SIMPLE : Insérer juste avant les boutons (toujours à la fin)
             int indexInsertion = joursContainer.getChildren().size();
 
-            // S'il y a un bouton "Ajouter Production", on insert avant lui
-            if (indexInsertion > 0) {
-                indexInsertion = indexInsertion - 1;
-            }
-
-            // S'il y a aussi un bouton "Calculer", on insert avant lui aussi
-            if (boutonCalculerExiste()) {
-                indexInsertion = indexInsertion - 1;
+            // Parcourir depuis la fin pour trouver où insérer
+            while (indexInsertion > 0) {
+                var element = joursContainer.getChildren().get(indexInsertion - 1);
+                if (element instanceof Button) {
+                    indexInsertion--; // Insérer avant ce bouton
+                } else {
+                    break; // On a trouvé un élément qui n'est pas un bouton
+                }
             }
 
             joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());
             compteurProductions++;
 
-            if (compteurProductions == 2 && !boutonCalculerExiste()) {
+            // Ajouter le bouton calculer si c'est la première fois qu'on a 2 productions
+            if (listeProductionUI.size() == 2 && !boutonCalculerExiste()) {
                 ajouterBoutonCalculer();
             }
+
+            LOGGER.info("Production ajoutée à l'index " + indexInsertion +
+                    " - Total productions: " + listeProductionUI.size());
 
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Erreur lors de l'ajout de production", e);
