@@ -43,6 +43,7 @@ public class TrackerController {
     @FXML private Label labelFiltrageActuel;
     @FXML private Label labelMatiereSelectionnee;
     // Services
+    private boolean modeModification = false;
     private ExcelExportService excelExportService;
     private MatierePremiereService matiereService;
     private ProductionService productionService;
@@ -97,12 +98,11 @@ public class TrackerController {
                     field.setPromptText("Sortie " + sortieIdeale.getNumeroSortie() +
                             " (" + sortieIdeale.getNomSortie() + ") - réelle");
 
-                    // LIGNE MANQUANTE À AJOUTER :
+                    // ✅ CORRECTION CRITIQUE
                     sortiesReellesFields.add(field);
 
-                    // Listener pour ce champ
                     field.textProperty().addListener((obs, old, val) -> mettreAJourAffichageStatut());
-                    System.out.println("Champs de sorties créés : " + sortiesReellesFields.size());}
+                }
             }
         }
 
@@ -646,10 +646,12 @@ public class TrackerController {
                 return;
             }
             // ✅ Vérifier les doublons
-            if (matiereService.nomExiste(nom)) {
-                afficherErreur("Nom déjà utilisé",
-                        "Une matière première avec ce nom existe déjà. Veuillez choisir un autre nom.");
-                return;
+            if (!modeModification || !nom.equals(matiereActuelle.getNom())) {
+                if (matiereService.nomExiste(nom)) {
+                    afficherErreur("Nom déjà utilisé",
+                            "Une matière première avec ce nom existe déjà. Veuillez choisir un autre nom.");
+                    return;
+                }
             }
             double quantiteEntreeIdeale;
             try {
@@ -739,26 +741,43 @@ public class TrackerController {
             }
 
             // ✅ Création de la matière première (reste identique)
-            MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
-                    nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
+            if (modeModification) {
+                // MODE MODIFICATION
+                matiereActuelle.setNom(nom);
+                matiereActuelle.setQuantiteEntreeIdeale(quantiteEntreeIdeale);
+                matiereActuelle.setSortiesIdeales(sortiesIdeales);
 
-            // Actualiser la liste et sélectionner la nouvelle matière
-            chargerMatieresPremieres();
-            // Sélectionner sans déclencher le listener
-            matierePremiereCombo.getSelectionModel().select(matiere);
-            matiereActuelle = matiere;
-            productionService.setMatierePremiereModel(matiere);
-            labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
+                matiereService.mettreAJour(matiereActuelle); // ✅ Méthode qui existe déjà
 
-            afficherInfo("Succès", "Matière première créée avec succès !");
-            viderChampsSaisie();
+                // Actualiser la liste
+                chargerMatieresPremieres();
+                matierePremiereCombo.getSelectionModel().select(matiereActuelle);
+
+                afficherInfo("Succès", "Matière première modifiée avec succès !");
+
+            } else {
+                // MODE CRÉATION (code existant)
+                MatierePremiereModel matiere = matiereService.creerMatierePremiereComplete(
+                        nom, quantiteEntreeIdeale, nombreSorties, sortiesIdeales);
+
+                // Actualiser la liste et sélectionner la nouvelle matière
+                chargerMatieresPremieres();
+                matierePremiereCombo.getSelectionModel().select(matiere);
+                matiereActuelle = matiere;
+                productionService.setMatierePremiereModel(matiere);
+                labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
+
+                afficherInfo("Succès", "Matière première créée avec succès !");
+            }
+
+            viderFormulaire(); // Vider après création/modification
 
         } catch (NumberFormatException e) {
             afficherErreur("Erreur de saisie", "Veuillez entrer des valeurs numériques valides.");
         } catch (ServiceException e) {
-            afficherErreur("Erreur de création", e.getMessage());
+            afficherErreur("Erreur de " + (modeModification ? "modification" : "création"), e.getMessage());
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Erreur lors de la création de la matière première", e);
+            LOGGER.log(Level.SEVERE, "Erreur lors de la " + (modeModification ? "modification" : "création") + " de la matière première", e);
             afficherErreur("Erreur", "Une erreur inattendue s'est produite : " + e.getMessage());
         }
     }
@@ -779,6 +798,10 @@ public class TrackerController {
         productionService.setMatierePremiereModel(matiere);
 
         labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
+
+        // NOUVEAU : Remplir le formulaire avec les données de la matière sélectionnée
+        remplirFormulaireAvecMatiere(matiere);
+
         chargerProductionsExistantes();
         // Actualiser toutes les productions existantes
         for (ProductionUI productionUI : listeProductionUI) {
@@ -788,6 +811,78 @@ public class TrackerController {
 
         calculerPerformances();
     }
+    private void remplirFormulaireAvecMatiere(MatierePremiereModel matiere) {
+        // Remplir les champs
+        matierePremiereField.setText(matiere.getNom());
+        quantiteEntreeIdealeField.setText(String.valueOf(matiere.getQuantiteEntreeIdeale()));
+
+        // Ajuster le nombre de sorties
+        int nbSorties = matiere.getSortiesIdeales().size();
+        nombreSortiesSpinner.getValueFactory().setValue(nbSorties);
+
+        // Remplir les champs de sorties
+        for (int i = 0; i < matiere.getSortiesIdeales().size(); i++) {
+            SortieIdeale sortie = matiere.getSortiesIdeales().get(i);
+            if (i * 2 < champsSortiesIdeales.size()) {
+                champsSortiesIdeales.get(i * 2).setText(String.valueOf(sortie.getQuantiteIdeale()));
+                champsSortiesIdeales.get(i * 2 + 1).setText(sortie.getNomSortie());
+            }
+        }
+
+        // Changer le texte du bouton pour indiquer la modification
+        btnCreerMatiere.setText("✏️ Modifier Matière");
+        modeModification = true;
+
+        // NOUVEAU : Afficher le bouton Annuler s'il n'existe pas déjà
+        ajouterBoutonAnnulerSiNecessaire();
+    }
+
+    // NOUVELLE méthode pour gérer le bouton Annuler
+    private void ajouterBoutonAnnulerSiNecessaire() {
+        // Vérifier si le bouton Annuler existe déjà
+        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        boolean boutonAnnulerExiste = parentBox.getChildren().stream()
+                .anyMatch(node -> node instanceof Button &&
+                        ((Button) node).getText().contains("Annuler"));
+
+        if (!boutonAnnulerExiste) {
+            Button btnAnnuler = new Button("❌ Annuler");
+            btnAnnuler.setStyle("-fx-background-color: #757575; -fx-text-fill: white;");
+            btnAnnuler.setOnAction(e -> annulerModification());
+            parentBox.getChildren().add(btnAnnuler);
+        }
+    }
+    @FXML
+    public void annulerModification() {
+        viderFormulaire();
+
+        // Supprimer le bouton Annuler
+        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        parentBox.getChildren().removeIf(node ->
+                node instanceof Button && ((Button) node).getText().contains("Annuler"));
+    }
+    private void viderFormulaire() {
+        matierePremiereField.clear();
+        quantiteEntreeIdealeField.clear();
+        for (TextField field : champsSortiesIdeales) {
+            field.clear();
+        }
+        // Remettre les noms par défaut
+        for (int i = 1; i < champsSortiesIdeales.size(); i += 2) {
+            champsSortiesIdeales.get(i).setText("Sortie " + ((i + 1) / 2));
+        }
+
+        btnCreerMatiere.setText("➕ Créer Matière");
+        modeModification = false;
+
+        // NOUVEAU : Supprimer le bouton Annuler s'il existe
+        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        if (parentBox != null) {
+            parentBox.getChildren().removeIf(node ->
+                    node instanceof Button && ((Button) node).getText().contains("Annuler"));
+        }
+    }
+
     private void chargerProductionsExistantes() {
         try {
             // VIDER TOUT D'ABORD (fix du bug principal)
@@ -1245,15 +1340,7 @@ public class TrackerController {
     }
 
     private void viderChampsSaisie() {
-        matierePremiereField.clear();
-        quantiteEntreeIdealeField.clear();
-        for (TextField field : champsSortiesIdeales) {
-            field.clear();
-        }
-        // Remettre les noms par défaut
-        for (int i = 1; i < champsSortiesIdeales.size(); i += 2) {
-            champsSortiesIdeales.get(i).setText("Sortie " + ((i + 1) / 2));
-        }
+        viderFormulaire();
     }
 
     private void afficherErreur(String titre, String message) {
