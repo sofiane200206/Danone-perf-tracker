@@ -4,7 +4,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
-
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <ScrollPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.TrackerController">
     <content>
         <VBox spacing="20.0">
@@ -14,11 +15,22 @@
 
             <!-- Header -->
             <VBox spacing="10.0">
-                <Label text="🏭 Tracker de Production Industrielle" textFill="#2c3e50">
-                    <font>
-                        <Font name="System Bold" size="24.0" />
-                    </font>
-                </Label>
+                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                    <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+                        <Label text="🏭 Tracker de Production Industrielle" textFill="#2c3e50">
+                            <font>
+                                <Font name="System Bold" size="24.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- Logo Danone en haut à droite -->
+                    <ImageView fx:id="logoDanone" fitHeight="100.0" fitWidth="200.0" preserveRatio="true">
+                        <image>
+                            <Image url="@images/logo_danone.png" />
+                        </image>
+                    </ImageView>
+                </HBox>
                 <Separator />
             </VBox>
 

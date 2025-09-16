@@ -308,7 +308,65 @@ public class ProductionDAO {
         }
         return 0;
     }
+    public List<ProductionModel> listerToutes() throws SQLException {
+        String query = """
+        SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
+               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+        FROM productions p
+        ORDER BY p.date_production DESC, p.heure_production DESC
+        """;
 
+        List<ProductionModel> productions = new ArrayList<>();
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                ProductionModel production = mapResultSetToProduction(rs);
+                production.setSortiesReelles(chargerSortiesReelles(conn, production.getId()));
+                productions.add(production);
+            }
+        }
+
+        LOGGER.info("Toutes les productions chargées : " + productions.size() + " productions trouvées");
+        return productions;
+    }
+
+    /**
+     * Récupère toutes les productions dans une période donnée (toutes matières premières)
+     */
+    public List<ProductionModel> listerToutesPeriode(LocalDate dateDebut, LocalDate dateFin) throws SQLException {
+        String query = """
+        SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
+               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+        FROM productions p
+        WHERE p.date_production >= ? 
+          AND p.date_production <= ?
+        ORDER BY p.date_production DESC, p.heure_production DESC
+        """;
+
+        List<ProductionModel> productions = new ArrayList<>();
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setDate(1, Date.valueOf(dateDebut));
+            stmt.setDate(2, Date.valueOf(dateFin));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    ProductionModel production = mapResultSetToProduction(rs);
+                    production.setSortiesReelles(chargerSortiesReelles(conn, production.getId()));
+                    productions.add(production);
+                }
+            }
+        }
+
+        LOGGER.info(String.format("Productions période %s à %s : %d productions trouvées",
+                dateDebut, dateFin, productions.size()));
+        return productions;
+    }
     private ProductionModel mapResultSetToProduction(ResultSet rs) throws SQLException {
         ProductionModel production = new ProductionModel();
         production.setId(rs.getLong("id"));

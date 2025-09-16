@@ -208,6 +208,35 @@ public class ProductionService {
             throw new ServiceException("Erreur lors de la suppression cascade : " + e.getMessage(), e);
         }
     }
+    public List<ProductionModel> getToutesProductions() {
+        try {
+            return productionDAO.listerToutes(); // Nouvelle méthode DAO nécessaire
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du chargement de toutes les productions", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Récupérer toutes les productions dans une période donnée
+     * (toutes matières premières confondues)
+     */
+    public List<ProductionModel> getToutesProductionsPeriode(LocalDate dateDebut, LocalDate dateFin) {
+        try {
+            if (dateDebut != null && dateFin != null) {
+                return productionDAO.listerToutesPeriode(dateDebut, dateFin); // Nouvelle méthode DAO nécessaire
+            } else {
+                return getToutesProductions().stream()
+                        .filter(p -> p.getDateProduction() != null)
+                        .filter(p -> (dateDebut == null || !p.getDateProduction().isBefore(dateDebut)))
+                        .filter(p -> (dateFin == null || !p.getDateProduction().isAfter(dateFin)))
+                        .collect(Collectors.toList());
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du filtrage de toutes les productions", e);
+            return new ArrayList<>();
+        }
+    }
     /**
      * Vider toutes les productions (pour tests uniquement)
      */

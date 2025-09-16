@@ -10,6 +10,15 @@ import model.MatierePremiereModel.SortieIdeale;
 import model.ProductionModel.SortieReelle;
 import service.*;
 import filter.*;
+import dao.ProductionDAO;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.*;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.event.ActionEvent;
+import javafx.util.Pair;
+import java.util.stream.Collectors;
+import java.util.Optional;
 
 import javafx.stage.FileChooser;
 import java.io.File;
@@ -1266,57 +1275,152 @@ public class TrackerController {
     }
     @FXML
     public void exporterVersExcel() {
-        if (matiereActuelle == null) {
-            afficherErreur("Aucune matière sélectionnée",
-                    "Veuillez d'abord sélectionner une matière première à exporter.");
-            return;
-        }
-
         try {
-            // Créer le sélecteur de fichier
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Exporter les productions vers Excel");
+            // 1. Dialog pour sélectionner les dates
+            Dialog<Pair<LocalDate, LocalDate>> dialog = new Dialog<>();
+            dialog.setTitle("Export Excel - Sélection de période");
+            dialog.setHeaderText("Choisissez la période d'export des productions\n(Toutes matières premières confondues)");
 
-            // Configuration des filtres d'extension
+            // Créer les composants du dialog
+            DatePicker dateDebutExport = new DatePicker(LocalDate.now().minusDays(30)); // 30 jours par défaut
+            DatePicker dateFinExport = new DatePicker(LocalDate.now());
+
+            GridPane grid = new GridPane();
+            grid.setHgap(10);
+            grid.setVgap(10);
+            grid.add(new Label("Date de début :"), 0, 0);
+            grid.add(dateDebutExport, 1, 0);
+            grid.add(new Label("Date de fin :"), 0, 1);
+            grid.add(dateFinExport, 1, 1);
+
+            // ✅ NOUVEAU : Ajouter un label informatif
+            Label infoLabel = new Label("ℹ️ Cet export inclura toutes les productions de toutes les matières premières");
+            infoLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 10px;");
+            grid.add(infoLabel, 0, 2, 2, 1);
+
+            dialog.getDialogPane().setContent(grid);
+
+            // Boutons
+            ButtonType boutonExporter = new ButtonType("Exporter", ButtonBar.ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(boutonExporter, ButtonType.CANCEL);
+
+            // Validation des dates
+            Button exportButton = (Button) dialog.getDialogPane().lookupButton(boutonExporter);
+            exportButton.addEventFilter(ActionEvent.ACTION, event -> {
+                LocalDate debut = dateDebutExport.getValue();
+                LocalDate fin = dateFinExport.getValue();
+
+                if (debut == null || fin == null) {
+                    afficherErreur("Dates manquantes", "Veuillez sélectionner les deux dates.");
+                    event.consume();
+                    return;
+                }
+
+                if (debut.isAfter(fin)) {
+                    afficherErreur("Dates invalides", "La date de début doit être antérieure à la date de fin.");
+                    event.consume();
+                    return;
+                }
+
+                // ✅ NOUVEAU : Vérifier qu'il n'y a pas trop de données
+                if (debut.isBefore(LocalDate.now().minusYears(1))) {
+                    Alert warning = new Alert(Alert.AlertType.WARNING);
+                    warning.setTitle("Période importante");
+                    warning.setHeaderText("Période d'export très large");
+                    warning.setContentText("Vous exportez plus d'un an de données. Cela peut prendre du temps. Continuer ?");
+                    Optional<ButtonType> result = warning.showAndWait();
+                    if (result.isEmpty() || result.get() != ButtonType.OK) {
+                        event.consume();
+                        return;
+                    }
+                }
+            });
+
+            // Convertir le résultat
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == boutonExporter) {
+                    return new Pair<>(dateDebutExport.getValue(), dateFinExport.getValue());
+                }
+                return null;
+            });
+
+            Optional<Pair<LocalDate, LocalDate>> result = dialog.showAndWait();
+
+            if (!result.isPresent()) {
+                LOGGER.info("Export annulé par l'utilisateur");
+                return;
+            }
+
+            LocalDate dateDebut = result.get().getKey();
+            LocalDate dateFin = result.get().getValue();
+
+            // ✅ CORRECTION : Utiliser le ProductionDAO directement pour éviter la dépendance à la matière sélectionnée
+            ProductionDAO productionDAO = new ProductionDAO();
+            List<ProductionModel> toutesProductions = productionDAO.listerToutesPeriode(dateDebut, dateFin);
+
+            List<ProductionModel> productionsPeriode = toutesProductions.stream()
+                    .filter(p -> p.getDateProduction() != null)
+                    .filter(p -> !p.getDateProduction().isBefore(dateDebut) &&
+                            !p.getDateProduction().isAfter(dateFin))
+                    .filter(ProductionModel::isValide)
+                    .collect(Collectors.toList());
+
+            if (productionsPeriode.isEmpty()) {
+                afficherErreur("Aucune production",
+                        String.format("Aucune production trouvée entre le %s et le %s.\n\n" +
+                                        "Vérifiez que des productions ont été créées dans cette période.",
+                                dateDebut.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                dateFin.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+                return;
+            }
+
+            // 3. Créer le sélecteur de fichier
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Exporter toutes les productions vers Excel");
+
             FileChooser.ExtensionFilter extFilter =
                     new FileChooser.ExtensionFilter("Fichiers Excel (*.xlsx)", "*.xlsx");
             fileChooser.getExtensionFilters().add(extFilter);
 
-            // Nom de fichier par défaut
-            String nomFichierDefaut = String.format("Production_%s_%s.xlsx",
-                    matiereActuelle.getNom().replaceAll("[^a-zA-Z0-9]", "_"),
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            // Nom de fichier par défaut avec les dates
+            String nomFichierDefaut = String.format("Export_Toutes_Productions_%s_au_%s.xlsx",
+                    dateDebut.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                    dateFin.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
             fileChooser.setInitialFileName(nomFichierDefaut);
 
-            // Répertoire initial (Documents de l'utilisateur)
+            // Répertoire initial
             String userHome = System.getProperty("user.home");
             File documentsDir = new File(userHome, "Documents");
             if (documentsDir.exists()) {
                 fileChooser.setInitialDirectory(documentsDir);
             }
 
-            // Afficher la boîte de dialogue
             File fichier = fileChooser.showSaveDialog(btnExporterExcel.getScene().getWindow());
 
             if (fichier != null) {
-                // S'assurer que l'extension .xlsx est présente
                 String cheminFichier = fichier.getAbsolutePath();
                 if (!cheminFichier.toLowerCase().endsWith(".xlsx")) {
                     cheminFichier += ".xlsx";
                 }
 
-                // Effectuer l'export
-                LOGGER.info("Début de l'export vers: " + cheminFichier);
-                excelExportService.exporterProductions(matiereActuelle, cheminFichier);
+                // ✅ Utiliser le ExcelExportService existant
+                LOGGER.info(String.format("Début export de %d productions de %s à %s vers: %s",
+                        productionsPeriode.size(), dateDebut, dateFin, cheminFichier));
 
-                // Confirmation de succès
+                // 4. Faire l'export
+                excelExportService.exporterToutesProductions(dateDebut, dateFin, cheminFichier);
+
+                // 5. Confirmation
                 afficherInfo("Export réussi",
-                        String.format("Les données de '%s' ont été exportées avec succès vers:\n%s\n\n" +
-                                        "Le fichier contient:\n" +
-                                        "• Résumé de la matière première\n" +
-                                        "• Détail de toutes les productions\n" +
-                                        "• Statistiques complètes",
-                                matiereActuelle.getNom(), cheminFichier));
+                        String.format("Export réussi !\n\n" +
+                                        "Période : %s au %s\n" +
+                                        "Nombre de productions : %d\n" +
+                                        "Fichier : %s\n\n" +
+                                        "Le fichier contient toutes les productions brutes de toutes les matières premières.",
+                                dateDebut.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                dateFin.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                productionsPeriode.size(),
+                                cheminFichier));
 
                 LOGGER.info("Export terminé avec succès");
 
