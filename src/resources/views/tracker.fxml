@@ -165,6 +165,11 @@
                     <Tooltip text="Exporter toutes les productions de la matière sélectionnée vers un fichier Excel"/>
                 </tooltip>
             </Button>
+            <Button fx:id="btnResetComplet"
+                    text="🔄 Reset BDD (avec export)"
+                    onAction="#resetBaseDonnees"
+                    style="-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold;"
+                    prefWidth="200"/>
             <!-- Footer -->
             <VBox spacing="5.0" alignment="CENTER">
                 <Separator />

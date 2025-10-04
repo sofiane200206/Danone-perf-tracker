@@ -23,7 +23,7 @@ import java.util.Optional;
 import javafx.stage.FileChooser;
 import java.io.File;
 import java.time.format.DateTimeFormatter;
-
+import javafx.stage.DirectoryChooser;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -58,6 +58,7 @@ public class TrackerController {
     private ProductionService productionService;
     private FiltrePeriode filtreActuel;
     private MatierePremiereModel matiereActuelle;
+    private DatabaseResetService databaseResetService;
     private int compteurProductions = 1;
     private List<ProductionUI> listeProductionUI = new ArrayList<>();
     private List<TextField> champsSortiesIdeales = new ArrayList<>();
@@ -101,18 +102,21 @@ public class TrackerController {
         private void creerChampsSorties() {
             sortiesReellesFields.clear();
 
+            // La matière première DOIT être définie à ce stade
             if (matiereActuelle != null && matiereActuelle.getSortiesIdeales() != null) {
                 for (SortieIdeale sortieIdeale : matiereActuelle.getSortiesIdeales()) {
                     TextField field = new TextField();
                     field.setPromptText("Sortie " + sortieIdeale.getNumeroSortie() +
                             " (" + sortieIdeale.getNomSortie() + ") - réelle");
 
-                    // ✅ CORRECTION CRITIQUE
                     sortiesReellesFields.add(field);
 
+                    // Ajouter le listener pour la mise à jour en temps réel
                     field.textProperty().addListener((obs, old, val) -> mettreAJourAffichageStatut());
                 }
             }
+            // Si matiereActuelle est null, la liste reste vide
+            // mais ça ne devrait jamais arriver car on vérifie avant d'ajouter une production
         }
 
 
@@ -458,6 +462,7 @@ public class TrackerController {
                 }
             }
         }
+
         private void activerModeModification() {
             // Réactiver tous les champs de saisie
             datePicker.setDisable(false);
@@ -547,6 +552,68 @@ public class TrackerController {
             }
 
         }
+
+        public void creerChampsSortiesAvecMatiere(MatierePremiereModel matiere) {
+            sortiesReellesFields.clear();
+
+            if (matiere != null && matiere.getSortiesIdeales() != null) {
+                for (SortieIdeale sortieIdeale : matiere.getSortiesIdeales()) {
+                    TextField field = new TextField();
+                    field.setPromptText("Sortie " + sortieIdeale.getNumeroSortie() +
+                            " (" + sortieIdeale.getNomSortie() + ") - réelle");
+
+                    sortiesReellesFields.add(field);
+                    field.textProperty().addListener((obs, old, val) -> mettreAJourAffichageStatut());
+                }
+
+                // Si le container existe déjà, le reconstruire sur place
+                if (container != null) {
+                    // Sauvegarder les valeurs
+                    String entreeText = entreeReelle.getText();
+                    boolean etaitDesactive = datePicker.isDisabled();
+
+                    // Reconstruire le container directement
+                    container.getChildren().clear();
+
+                    HBox heureBox = new HBox(10);
+                    heureBox.getChildren().addAll(new Label("Heure :"), timeField);
+
+                    container.getChildren().addAll(label, datePicker, heureBox, entreeReelle);
+
+                    // Ajouter les NOUVEAUX champs de sorties
+                    for (TextField field : sortiesReellesFields) {
+                        container.getChildren().add(field);
+                    }
+
+                    container.getChildren().add(resultatLabel);
+
+                    // Boutons d'action
+                    HBox boutons = new HBox(10);
+                    Button btnSauvegarder = new Button("💾 Sauvegarder");
+                    btnSauvegarder.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                    btnSauvegarder.setOnAction(e -> sauvegarderProduction());
+
+                    Button btnModifier = new Button("✏️ Modifier");
+                    btnModifier.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+                    btnModifier.setOnAction(e -> activerModeModification());
+
+                    Button btnSupprimer = new Button("🗑️ Supprimer");
+                    btnSupprimer.setStyle("-fx-background-color: #ff6b6b; -fx-text-fill: white;");
+                    btnSupprimer.setOnAction(e -> supprimerProduction());
+
+                    boutons.getChildren().addAll(btnSauvegarder, btnModifier, btnSupprimer);
+                    container.getChildren().add(boutons);
+
+                    // Restaurer les valeurs
+                    entreeReelle.setText(entreeText);
+
+                    // Restaurer l'état des champs
+                    if (etaitDesactive) {
+                        desactiverChampsSaisie();
+                    }
+                }
+            }
+        }
     }
 
     @FXML
@@ -556,7 +623,7 @@ public class TrackerController {
             productionService = new ProductionService();
             excelExportService = new ExcelExportService(productionService);
             btnExporterExcel.setOnAction(e -> exporterVersExcel());
-
+            databaseResetService = new DatabaseResetService(excelExportService);
             filtreActuel = FiltrePeriode.creerFiltreTout();
 
             // Configuration du spinner pour le nombre de sorties
@@ -808,15 +875,15 @@ public class TrackerController {
 
         labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiere.getNom());
 
-        // NOUVEAU : Remplir le formulaire avec les données de la matière sélectionnée
+        // Remplir le formulaire avec les données de la matière sélectionnée
         remplirFormulaireAvecMatiere(matiere);
 
+        // CORRECTION : Vider d'abord l'affichage avant de recharger
+        viderAffichageProductions();
+        listeProductionUI.clear();
+
+        // Charger les productions de cette matière uniquement
         chargerProductionsExistantes();
-        // Actualiser toutes les productions existantes
-        for (ProductionUI productionUI : listeProductionUI) {
-            productionUI.production.setMatierePremiereId(matiere.getId());
-            productionUI.actualiserAffichage();
-        }
 
         calculerPerformances();
     }
@@ -894,13 +961,17 @@ public class TrackerController {
 
     private void chargerProductionsExistantes() {
         try {
-            // VIDER TOUT D'ABORD (fix du bug principal)
+            // VIDER TOUT D'ABORD
             viderAffichageProductions();
 
-            // Récupérer les productions de cette matière première
-            List<ProductionModel> productionsBDD = productionService.getProductions();
+            // Récupérer SEULEMENT les productions de la matière première sélectionnée
+            List<ProductionModel> productionsBDD = productionService.getProductions()
+                    .stream()
+                    .filter(p -> p.getMatierePremiereId().equals(matiereActuelle.getId()))
+                    .collect(Collectors.toList());
 
-            LOGGER.info("Chargement de " + productionsBDD.size() + " productions depuis la base");
+            LOGGER.info("Chargement de " + productionsBDD.size() +
+                    " productions pour la matière: " + matiereActuelle.getNom());
 
             // Créer les UI pour chaque production existante
             for (ProductionModel production : productionsBDD) {
@@ -923,8 +994,12 @@ public class TrackerController {
                     "Impossible de charger les productions existantes : " + e.getMessage());
         }
     }
+
     private void creerUIProduction(ProductionModel production) {
         ProductionUI productionUI = new ProductionUI(production);
+
+        // IMPORTANT : Forcer la création des champs avec la matière actuelle
+        productionUI.creerChampsSortiesAvecMatiere(matiereActuelle);
 
         // Remplir les champs avec les données existantes
         if (production.getDateProduction() != null) {
@@ -950,11 +1025,12 @@ public class TrackerController {
             }
         }
 
-        // CHANGEMENT : Appeler la nouvelle méthode d'affichage
+        // Mettre à jour l'affichage
         productionUI.mettreAJourAffichageStatut();
         if (production.getId() != null) {
             productionUI.desactiverChampsSaisie();
         }
+
         // Ajouter à la liste et à l'interface
         listeProductionUI.add(productionUI);
 
@@ -965,25 +1041,24 @@ public class TrackerController {
         joursContainer.getChildren().add(indexInsertion, productionUI.getContainer());
     }
     private void viderAffichageProductions() {
-        // Conserver seulement le bouton d'ajout production qui doit rester en dernier
         if (!joursContainer.getChildren().isEmpty()) {
-            // Sauvegarder le dernier élément (bouton d'ajout) et le bouton calculer si il existe
-            int taille = joursContainer.getChildren().size();
-            var dernierElement = joursContainer.getChildren().get(taille - 1);
+            // Identifier et sauvegarder UNIQUEMENT les boutons (pas les productions)
+            List<javafx.scene.Node> boutons = new ArrayList<>();
 
-            boolean avaitBoutonCalculer = boutonCalculerExiste();
-            var boutonCalculer = avaitBoutonCalculer ?
-                    joursContainer.getChildren().get(taille - 2) : null;
+            for (javafx.scene.Node node : joursContainer.getChildren()) {
+                if (node instanceof Button) {
+                    boutons.add(node);
+                }
+            }
 
-            // Vider tout
+            // Tout vider (productions + boutons)
             joursContainer.getChildren().clear();
             listeProductionUI.clear();
 
-            // Remettre les boutons
-            if (avaitBoutonCalculer && boutonCalculer != null) {
-                joursContainer.getChildren().add(boutonCalculer);
-            }
-            joursContainer.getChildren().add(dernierElement);
+            // Remettre UNIQUEMENT les boutons
+            joursContainer.getChildren().addAll(boutons);
+
+            LOGGER.info("Interface vidée : " + boutons.size() + " boutons conservés");
         }
     }
 
@@ -1000,18 +1075,22 @@ public class TrackerController {
             production.setMatierePremiereId(matiereActuelle.getId());
             production.setDateProduction(LocalDate.now());
 
+            // CORRECTION : Créer la ProductionUI APRÈS avoir défini matiereActuelle
             ProductionUI productionUI = new ProductionUI(production);
-            listeProductionUI.add(productionUI);
-            // ALTERNATIVE SIMPLE : Insérer juste avant les boutons (toujours à la fin)
-            int indexInsertion = joursContainer.getChildren().size();
 
-            // Parcourir depuis la fin pour trouver où insérer
+            // CORRECTION : Forcer la création des champs avec la matière actuelle
+            productionUI.creerChampsSortiesAvecMatiere(matiereActuelle);
+
+            listeProductionUI.add(productionUI);
+
+            // Insérer juste avant les boutons (toujours à la fin)
+            int indexInsertion = joursContainer.getChildren().size();
             while (indexInsertion > 0) {
                 var element = joursContainer.getChildren().get(indexInsertion - 1);
                 if (element instanceof Button) {
-                    indexInsertion--; // Insérer avant ce bouton
+                    indexInsertion--;
                 } else {
-                    break; // On a trouvé un élément qui n'est pas un bouton
+                    break;
                 }
             }
 
@@ -1438,7 +1517,123 @@ public class TrackerController {
                     "Une erreur inattendue s'est produite lors de l'export:\n" + e.getMessage());
         }
     }
+    @FXML
+    public void resetBaseDonnees() {
+        try {
+            // 1. Vérifier s'il y a des données à sauvegarder
+            int nbProductions = databaseResetService.compterProductionsExistantes();
 
+            if (nbProductions == 0) {
+                afficherInfo("Base vide", "La base de données ne contient aucune production à supprimer.");
+                return;
+            }
+
+            // 2. Dialog de confirmation avec détails
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Reset Base de Données");
+            confirmation.setHeaderText("Confirmation de suppression des productions");
+            confirmation.setContentText(String.format(
+                    "Cette action va :\n\n" +
+                            "✅ Exporter automatiquement les %d productions vers Excel\n" +
+                            "❌ Supprimer TOUTES les productions de la base de données\n" +
+                            "✅ Conserver toutes les matières premières\n" +
+                            "\n" +
+                            "📁 Le fichier sera sauvegardé dans le dossier Documents\n" +
+                            "\n" +
+                            "⚠️ Cette action est irréversible !\n" +
+                            "\n" +
+                            "Voulez-vous continuer ?", nbProductions
+            ));
+
+            Optional<ButtonType> resultat = confirmation.showAndWait();
+
+            if (resultat.isEmpty() || resultat.get() != ButtonType.OK) {
+                LOGGER.info("Reset annulé par l'utilisateur");
+                return;
+            }
+
+            // 3. Effectuer le reset avec export automatique
+            LOGGER.info("Début du reset de la base de données avec export automatique");
+
+            String cheminFichierExport = databaseResetService.resetProductionsAvecExport();
+
+            // 4. Nettoyer l'interface utilisateur
+            nettoyerInterfaceApresReset();
+
+            // 5. Message de confirmation
+            String messageSucces;
+            if (cheminFichierExport != null) {
+                messageSucces = String.format(
+                        "Reset terminé avec succès !\n\n" +
+                                "📊 %d productions supprimées\n" +
+                                "💾 Backup sauvegardé automatiquement :\n%s\n" +
+                                "\n" +
+                                "L'interface a été réinitialisée.\n" +
+                                "Les matières premières sont conservées.",
+                        nbProductions,
+                        cheminFichierExport
+                );
+            } else {
+                messageSucces = String.format(
+                        "Reset terminé avec succès !\n\n" +
+                                "📊 %d productions supprimées\n" +
+                                "ℹ️ Aucune production valide à exporter\n" +
+                                "\n" +
+                                "L'interface a été réinitialisée.\n" +
+                                "Les matières premières sont conservées.",
+                        nbProductions
+                );
+            }
+
+            afficherInfo("Reset Terminé", messageSucces);
+
+            LOGGER.info("Reset de la base de données terminé avec succès");
+
+        } catch (ServiceException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du reset de la base de données", e);
+            afficherErreur("Erreur de Reset",
+                    "Impossible de réinitialiser la base de données :\n" + e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Erreur inattendue lors du reset", e);
+            afficherErreur("Erreur Inattendue",
+                    "Une erreur grave s'est produite lors du reset :\n" + e.getMessage());
+        }
+    }
+
+    // Méthode pour nettoyer l'interface après le reset
+    private void nettoyerInterfaceApresReset() {
+        try {
+            // 1. Vider l'affichage des productions
+            viderAffichageProductions();
+
+            // 2. Réinitialiser la liste des productions UI
+            listeProductionUI.clear();
+
+            // 3. Remettre le compteur à 1
+            compteurProductions = 1;
+
+            // 4. Réinitialiser les statistiques
+            labelMeilleurePerf.setText("📈 Meilleur jour : N/A");
+            labelPlusGrossePerte.setText("📉 Plus grosse perte : N/A");
+            labelMoyenneGlobale.setText("📊 Moyenne globale : N/A");
+
+            // 5. Si une matière première est sélectionnée, recharger ses productions (vides maintenant)
+            if (matiereActuelle != null) {
+                // Garder la sélection mais vider les productions
+                productionService.setMatierePremiereModel(matiereActuelle);
+                labelMatiereSelectionnee.setText("📦 Matière sélectionnée : " + matiereActuelle.getNom() + " (productions réinitialisées)");
+            }
+
+            // 6. Réappliquer le filtre pour montrer qu'il n'y a plus de données
+            calculerPerformances();
+
+            LOGGER.info("Interface nettoyée après reset");
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Erreur lors du nettoyage de l'interface", e);
+            // On continue même en cas d'erreur de nettoyage
+        }
+    }
     private void mettreAJourLabelFiltre() {
         labelFiltrageActuel.setText("📅 " + filtreActuel.getNom());
     }
