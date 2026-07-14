@@ -25,12 +25,12 @@ public class JourneeProduction {
 
     private void recalculerTotaux() {
         totalEntreeJour = productions.stream()
-                .filter(ProductionModel::isValide)
+                .filter(ProductionModel::isComptabilisable)
                 .mapToDouble(ProductionModel::getQuantiteEntreeReelle)
                 .sum();
 
         totalSortiesJour = productions.stream()
-                .filter(ProductionModel::isValide)
+                .filter(ProductionModel::isComptabilisable)
                 .mapToDouble(ProductionModel::getTotalSortiesReelles)
                 .sum();
     }
@@ -58,7 +58,7 @@ public class JourneeProduction {
     // Nouvelle méthode pour obtenir le total d'une sortie spécifique
     public double getTotalSortieParNumero(int numeroSortie) {
         return productions.stream()
-                .filter(ProductionModel::isValide)
+                .filter(ProductionModel::isComptabilisable)
                 .mapToDouble(p -> {
                     ProductionModel.SortieReelle sortie = p.getSortieReelle(numeroSortie);
                     return sortie != null ? sortie.getQuantiteReelle() : 0;

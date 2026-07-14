@@ -125,6 +125,16 @@ public class ProductionModel {
         return "ERREUR".equals(statut);
     }
 
+    /**
+     * Indique si cette production doit être comptée dans les totaux de performance.
+     * Règle métier : les données doivent être complètes (peu importe l'id en base
+     * ou le statut administratif), sauf si la production est marquée en ERREUR
+     * (mesure connue comme douteuse).
+     */
+    public boolean isComptabilisable() {
+        return isDonneeComplete() && !hasErreur();
+    }
+
     public boolean isComplete() {
         return "VALIDE".equals(statut);
     }
