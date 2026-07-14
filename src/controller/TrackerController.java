@@ -20,6 +20,9 @@ import javafx.util.Pair;
 import java.util.stream.Collectors;
 import java.util.Optional;
 
+import model.UserRole;
+import service.SessionManager;
+
 import javafx.stage.FileChooser;
 import java.io.File;
 import java.time.format.DateTimeFormatter;
@@ -60,6 +63,7 @@ public class TrackerController {
     private MatierePremiereModel matiereActuelle;
     private DatabaseResetService databaseResetService;
     private int compteurProductions = 1;
+    private UserRole currentRole;
     private List<ProductionUI> listeProductionUI = new ArrayList<>();
     private List<TextField> champsSortiesIdeales = new ArrayList<>();
 
@@ -668,7 +672,22 @@ public class TrackerController {
             afficherErreur("Erreur d'initialisation", "Impossible d'initialiser l'application : " + e.getMessage());
         }
     }
+    public void configureForRole(UserRole role) {
+        this.currentRole = role;
 
+        if (role == UserRole.USER) {
+            // Masquer/Désactiver les fonctionnalités admin
+            desactiverFonctionnalitesAdmin();
+        }
+
+        // Ajouter un indicateur de rôle dans l'interface
+        if (labelMatiereSelectionnee != null) {
+            String roleText = role == UserRole.ADMIN ? "👨‍💼 Admin" : "👤 User";
+            labelMatiereSelectionnee.setText(roleText + " | 📦 Aucune matière sélectionnée");
+        }
+
+        LOGGER.info("Interface configurée pour le rôle : " + role.getDisplayName());
+    }
     private void creerChampsSortiesIdeales(int nombre) {
         sortiesIdealesContainer.getChildren().clear();
         champsSortiesIdeales.clear();
@@ -693,6 +712,11 @@ public class TrackerController {
 
     @FXML
     public void creerNouvelleMatiere() {
+        if (currentRole == UserRole.USER) {
+            afficherErreur("Accès refusé",
+                    "Seuls les administrateurs peuvent créer/modifier des matières premières.");
+            return;
+        }
         try {
             // ✅ VALIDATION DU NOM
             String nom = matierePremiereField.getText().trim();
@@ -1288,6 +1312,11 @@ public class TrackerController {
     }
     @FXML
     public void supprimerMatiereActuelle() {
+        if (currentRole == UserRole.USER) {
+            afficherErreur("Accès refusé",
+                    "Seuls les administrateurs peuvent supprimer des matières premières.");
+            return;
+        }
         if (matiereActuelle == null) {
             afficherErreur("Aucune sélection", "Veuillez d'abord sélectionner une matière première à supprimer.");
             return;
@@ -1634,6 +1663,35 @@ public class TrackerController {
             // On continue même en cas d'erreur de nettoyage
         }
     }
+    private void desactiverFonctionnalitesAdmin() {
+        // 1. Désactiver la création/modification de matières premières
+        if (matierePremiereField != null) matierePremiereField.setDisable(true);
+        if (quantiteEntreeIdealeField != null) quantiteEntreeIdealeField.setDisable(true);
+        if (nombreSortiesSpinner != null) nombreSortiesSpinner.setDisable(true);
+        if (btnCreerMatiere != null) {
+            btnCreerMatiere.setDisable(true);
+            btnCreerMatiere.setText("🔒 Réservé Admin");
+        }
+
+        // 2. Désactiver tous les champs de sorties idéales
+        if (champsSortiesIdeales != null) {
+            for (TextField field : champsSortiesIdeales) {
+                field.setDisable(true);
+            }
+        }
+
+        // 3. Ajouter un label informatif
+        if (sortiesIdealesContainer != null && sortiesIdealesContainer.getChildren().size() > 0) {
+            Label infoLabel = new Label("ℹ️ Seuls les administrateurs peuvent créer/modifier les matières premières");
+            infoLabel.setStyle("-fx-text-fill: #ff6b6b; -fx-font-weight: bold; -fx-padding: 10;");
+            sortiesIdealesContainer.getChildren().add(0, infoLabel);
+        }
+
+        LOGGER.info("Fonctionnalités admin désactivées pour l'utilisateur standard");
+    }
+
+
+
     private void mettreAJourLabelFiltre() {
         labelFiltrageActuel.setText("📅 " + filtreActuel.getNom());
     }

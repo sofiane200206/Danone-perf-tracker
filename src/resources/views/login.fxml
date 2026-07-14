@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="controller.LoginController"
+      alignment="CENTER" spacing="30"
+      style="-fx-background-color: linear-gradient(to bottom, #667eea 0%, #764ba2 100%);">
+
+    <padding>
+        <Insets top="50" right="50" bottom="50" left="50"/>
+    </padding>
+
+    <!-- Zone de bienvenue -->
+    <VBox alignment="CENTER" spacing="15"
+          style="-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 5);">
+        <padding>
+            <Insets top="40" right="40" bottom="40" left="40"/>
+        </padding>
+
+        <Label text="🏭" style="-fx-font-size: 60px;"/>
+
+        <Label fx:id="labelBienvenue" text="Performance Tracker"
+               style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #667eea;"/>
+
+        <Label text="Analyse de performances industrielles"
+               style="-fx-font-size: 14px; -fx-text-fill: #666;"/>
+
+        <Separator prefWidth="200">
+            <padding>
+                <Insets top="10" bottom="10"/>
+            </padding>
+        </Separator>
+
+        <Label text="Choisissez votre mode d'accès :"
+               style="-fx-font-size: 16px; -fx-text-fill: #333; -fx-font-weight: bold;">
+            <padding>
+                <Insets top="10" bottom="10"/>
+            </padding>
+        </Label>
+
+        <!-- Boutons de connexion -->
+        <HBox spacing="20" alignment="CENTER">
+            <padding>
+                <Insets top="10"/>
+            </padding>
+
+            <!-- Bouton Admin -->
+            <VBox alignment="CENTER" spacing="10"
+                  style="-fx-background-color: #667eea; -fx-background-radius: 10; -fx-cursor: hand;">
+                <padding>
+                    <Insets top="30" right="40" bottom="30" left="40"/>
+                </padding>
+
+                <Button fx:id="btnAdmin" text="👨‍💼 Administrateur"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-cursor: hand; -fx-border-width: 0;">
+                    <font>
+                        <Font name="System Bold" size="18"/>
+                    </font>
+                </Button>
+
+                <Label text="Accès complet"
+                       style="-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 12px;"/>
+            </VBox>
+
+            <!-- Bouton User -->
+            <VBox alignment="CENTER" spacing="10"
+                  style="-fx-background-color: #764ba2; -fx-background-radius: 10; -fx-cursor: hand;">
+                <padding>
+                    <Insets top="30" right="40" bottom="30" left="40"/>
+                </padding>
+
+                <Button fx:id="btnUser" text="👤 Utilisateur"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-cursor: hand; -fx-border-width: 0;">
+                    <font>
+                        <Font name="System Bold" size="18"/>
+                    </font>
+                </Button>
+
+                <Label text="Consultation et saisie"
+                       style="-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 12px;"/>
+            </VBox>
+        </HBox>
+
+        <!-- Informations des permissions -->
+        <VBox spacing="8" alignment="CENTER_LEFT"
+              style="-fx-background-color: #f5f5f5; -fx-background-radius: 8; -fx-padding: 15;">
+            <padding>
+                <Insets top="20"/>
+            </padding>
+
+            <Label text="Permissions :"
+                   style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+
+            <Label text="✅ Admin : Créer/Modifier/Supprimer matières + toutes fonctionnalités"
+                   style="-fx-font-size: 12px; -fx-text-fill: #555;"/>
+
+            <Label text="✅ User : Ajouter productions, consulter statistiques, exporter données"
+                   style="-fx-font-size: 12px; -fx-text-fill: #555;"/>
+        </VBox>
+    </VBox>
+
+    <Label text="Version 1.0 - Performance Tracker Pro"
+           style="-fx-text-fill: rgba(255,255,255,0.7); -fx-font-size: 11px;">
+        <padding>
+            <Insets top="20"/>
+        </padding>
+    </Label>
+</VBox>

@@ -10,9 +10,13 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getClassLoader().getResource("resources/views/tracker.fxml"));// le chemin est relatif à resources/
-        primaryStage.setTitle("Performance Tracker");
-        primaryStage.setScene(new Scene(root, 800, 600));
+        // Charger l'écran de connexion au lieu du tracker directement
+        Parent root = FXMLLoader.load(getClass().getClassLoader()
+                .getResource("resources/views/login.fxml"));
+
+        primaryStage.setTitle("Performance Tracker - Connexion");
+        primaryStage.setScene(new Scene(root, 600, 500));
+        primaryStage.setResizable(false); // Optionnel : bloquer le redimensionnement
         primaryStage.show();
     }
 
