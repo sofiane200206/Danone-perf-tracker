@@ -278,16 +278,32 @@ public class ProductionDAO {
      * Supprime une production et ses sorties
      */
     public void supprimer(Long id) throws SQLException {
+        // SQLite n'applique pas les clés étrangères par défaut : il faut supprimer
+        // les sorties explicitement, sinon elles restent orphelines en base
         String query = "DELETE FROM productions WHERE id = ?";
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
 
-            // Les sorties seront supprimées automatiquement grâce à la clé étrangère
-            stmt.setLong(1, id);
-            int rowsAffected = stmt.executeUpdate();
+            try {
+                supprimerSortiesReelles(conn, id);
 
-            if (rowsAffected > 0) {
-                LOGGER.info("Production supprimée : ID " + id);
+                try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                    stmt.setLong(1, id);
+                    int rowsAffected = stmt.executeUpdate();
+
+                    if (rowsAffected > 0) {
+                        LOGGER.info("Production supprimée : ID " + id);
+                    }
+                }
+
+                conn.commit();
+
+            } catch (Exception e) {
+                conn.rollback();
+                LOGGER.log(Level.SEVERE, "Erreur lors de la suppression de la production", e);
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
     }
