@@ -13,6 +13,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <javafx.version>21</javafx.version>
+        <!-- Le code contient des emoji : sans cela le build echoue en windows-1252 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
@@ -43,6 +45,17 @@
     </dependencies>
 
     <build>
+        <!-- Les sources sont a la racine de src/ (pas la convention Maven src/main/java) -->
+        <sourceDirectory>src</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>src</directory>
+                <excludes>
+                    <exclude>**/*.java</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
         <plugins>
             <!-- Plugin Maven compiler -->
             <plugin>
