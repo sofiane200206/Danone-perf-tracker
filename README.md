@@ -69,6 +69,16 @@ le plugin `javafx-maven-plugin` est déjà configuré sur la classe principale :
 mvn clean javafx:run
 ```
 
+### Lancer les tests
+
+```bash
+mvn test
+```
+
+19 tests JUnit 5 couvrent le cœur métier : la règle de comptabilisation des
+productions, le calcul de performance journalier et l'agrégation statistique
+sur une période (`test/`).
+
 ### Avec IntelliJ IDEA
 
 1. Ouvrir le projet, vérifier le chemin du SDK JavaFX dans
@@ -89,7 +99,7 @@ racine du projet au premier lancement.
 
 ## Pistes d'amélioration
 
-- Tests unitaires sur le calcul de performance (cœur métier)
+- Étendre la couverture de tests aux couches DAO et service
 - Authentification réelle (le login actuel est un sélecteur de rôle)
 - Unifier la gestion des dépendances sur Maven (aujourd'hui dupliquée avec IntelliJ)
 - Nettoyage du code hérité de la première version (`ModeleIdeal`, `Production`)

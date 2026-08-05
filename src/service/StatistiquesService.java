@@ -54,7 +54,9 @@ public class StatistiquesService {
         }
 
         double sommePerformances = 0;
-        double performanceMax = Double.MIN_VALUE;
+        // -Double.MAX_VALUE et non Double.MIN_VALUE, qui vaut le plus petit
+        // double POSITIF : une periode entierement a 0 % ne designait aucun meilleur jour
+        double performanceMax = -Double.MAX_VALUE;
         double performanceMin = Double.MAX_VALUE;
         LocalDate jourMax = null;
         LocalDate jourMin = null;
