@@ -58,27 +58,38 @@ src/
 
 ## Lancer le projet
 
-Projet IntelliJ IDEA (pas de Maven/Gradle).
+**Prérequis :** JDK 17+ (développé avec le JDK 21).
 
-**Prérequis :**
-- JDK 17+ (développé avec le JDK 21)
-- [JavaFX SDK 21](https://gluonhq.com/products/javafx/) installé localement
-- Jars fournis/attendus dans les bibliothèques du projet : `sqlite-jdbc`, `slf4j-api`,
-  `slf4j-simple`, Apache POI
+### Avec Maven (le plus simple)
 
-**Étapes :**
-1. Ouvrir le projet dans IntelliJ IDEA
-2. Vérifier le chemin du SDK JavaFX dans *File → Project Structure → Libraries*
-3. Ajouter les options VM au lancement de `Main` :
+Le `pom.xml` déclare toutes les dépendances (JavaFX, sqlite-jdbc, Apache POI) et
+le plugin `javafx-maven-plugin` est déjà configuré sur la classe principale :
+
+```bash
+mvn clean javafx:run
+```
+
+### Avec IntelliJ IDEA
+
+1. Ouvrir le projet, vérifier le chemin du SDK JavaFX dans
+   *File → Project Structure → Libraries*
+2. Ajouter les options VM au lancement de `Main` :
    ```
    --module-path "chemin/vers/javafx-sdk-21/lib" --add-modules javafx.controls,javafx.fxml
    ```
-4. Lancer `com.sofiane.performance.Main` — la base `production_tracker.db` est créée
-   automatiquement à la racine du projet
+3. Lancer `com.sofiane.performance.Main`
+
+Dans les deux cas, la base `production_tracker.db` est créée automatiquement à la
+racine du projet au premier lancement.
+
+> **Note :** le projet a été développé avec les bibliothèques déclarées dans IntelliJ,
+> en parallèle du `pom.xml`. Les deux configurations coexistent et les versions ne sont
+> pas parfaitement alignées (ex. `sqlite-jdbc` 3.43 dans le pom, 3.45 côté IntelliJ) —
+> unifier sur Maven fait partie des améliorations prévues.
 
 ## Pistes d'amélioration
 
 - Tests unitaires sur le calcul de performance (cœur métier)
 - Authentification réelle (le login actuel est un sélecteur de rôle)
-- Migration vers Maven/Gradle pour la gestion des dépendances
+- Unifier la gestion des dépendances sur Maven (aujourd'hui dupliquée avec IntelliJ)
 - Nettoyage du code hérité de la première version (`ModeleIdeal`, `Production`)
