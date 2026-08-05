@@ -142,7 +142,7 @@ public class ExcelExportService {
                     .filter(p -> p.getDateProduction() != null)
                     .filter(p -> !p.getDateProduction().isBefore(dateDebut) &&
                             !p.getDateProduction().isAfter(dateFin))
-                    .filter(ProductionModel::isValide)
+                    .filter(ProductionModel::isComptabilisable)
                     .sorted((p1, p2) -> {
                         // Trier par date puis par heure
                         int dateCompare = p1.getDateProduction().compareTo(p2.getDateProduction());
@@ -362,7 +362,7 @@ public class ExcelExportService {
 
         // Données des productions
         for (ProductionModel production : productions) {
-            if (!production.isValide()) continue; // Ignorer les productions invalides
+            if (!production.isComptabilisable()) continue; // Meme regle que les stats a l'ecran
 
             Row dataRow = sheet.createRow(rowNum++);
             colNum = 0;
@@ -439,7 +439,7 @@ public class ExcelExportService {
 
     private void creerFeuilleStatistiques(Sheet sheet, MatierePremiereModel matiere, Workbook workbook) throws ServiceException {
         List<ProductionModel> productions = productionService.getProductions();
-        productions = productions.stream().filter(ProductionModel::isValide).toList();
+        productions = productions.stream().filter(ProductionModel::isComptabilisable).toList();
 
         CellStyle headerStyle = creerStyleEntete(workbook);
         CellStyle numberStyle = creerStyleNombre(workbook);

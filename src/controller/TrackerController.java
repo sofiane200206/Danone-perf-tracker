@@ -1470,7 +1470,7 @@ public class TrackerController {
                     .filter(p -> p.getDateProduction() != null)
                     .filter(p -> !p.getDateProduction().isBefore(dateDebut) &&
                             !p.getDateProduction().isAfter(dateFin))
-                    .filter(ProductionModel::isValide)
+                    .filter(ProductionModel::isComptabilisable)
                     .collect(Collectors.toList());
 
             if (productionsPeriode.isEmpty()) {
