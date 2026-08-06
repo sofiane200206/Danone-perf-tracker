@@ -73,6 +73,33 @@ src/
 └── resources/    Vues FXML (login.fxml, tracker.fxml)
 ```
 
+## Distribuer l'application
+
+```bash
+construire-application.bat
+```
+
+Le script compile, lance les tests, puis produit deux livrables dans `target/` :
+
+| Livrable | Pour qui | Prérequis |
+|----------|----------|-----------|
+| `application/PerformanceTracker/` | **Postes de production** | aucun — Java est embarqué |
+| `PerformanceTracker-1.0-SNAPSHOT-autonome.jar` | Dépannage, test rapide | Java 17+ installé |
+
+Pour déployer : copier le dossier `PerformanceTracker/` sur le poste et lancer
+`PerformanceTracker.exe`. Au premier démarrage, l'application demande la création
+du compte administrateur, qui pourra ensuite créer les comptes des opérateurs.
+
+> **Où placer le dossier :** la base de données et les sauvegardes sont créées à
+> côté de l'exécutable. Installez-le dans un emplacement où l'utilisateur a le droit
+> d'écrire (`C:\PerformanceTracker`, un disque partagé…) et **non** dans
+> `C:\Program Files`, qui est protégé en écriture. Pour choisir un autre
+> emplacement, passer `-Dperformancetracker.db.url=jdbc:sqlite:CHEMIN` au lancement.
+
+> **Sauvegardes :** l'application conserve les 10 dernières copies dans
+> `sauvegardes/`, à côté de la base. Ces copies vivent sur le même disque : pour une
+> vraie protection, sauvegardez ce dossier ailleurs (serveur, disque externe).
+
 ## Lancer le projet
 
 **Prérequis :** JDK 17+ (développé avec le JDK 21).
