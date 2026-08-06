@@ -20,8 +20,9 @@ public class Main extends Application {
                 .getResource("resources/views/login.fxml"));
 
         primaryStage.setTitle("Performance Tracker - Connexion");
-        primaryStage.setScene(new Scene(root, 600, 500));
-        primaryStage.setResizable(false); // Optionnel : bloquer le redimensionnement
+        primaryStage.setScene(new Scene(root, 600, 560));
+        primaryStage.setMinWidth(420);
+        primaryStage.setMinHeight(480);
         primaryStage.show();
     }
 

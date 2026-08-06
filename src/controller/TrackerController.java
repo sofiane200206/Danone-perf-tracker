@@ -57,6 +57,13 @@ public class TrackerController {
     @FXML private Label labelUtilisateurConnecte;
     @FXML private Button btnGererComptes;
     @FXML private Button btnChangerMotDePasse;
+    @FXML private FlowPane panneauxSuperieurs;
+    @FXML private VBox panneauMatiere;
+    @FXML private VBox panneauStatistiques;
+    @FXML private ScrollPane zoneProductions;
+
+    /** En dessous de cette largeur, les panneaux s'empilent au lieu de se cotoyer. */
+    public static final double LARGEUR_MINIMALE_DEUX_COLONNES = 900.0;
     // Services
     private boolean modeModification = false;
     private ExcelExportService excelExportService;
@@ -626,6 +633,8 @@ public class TrackerController {
     @FXML
     public void initialize() {
         try {
+            configurerResponsive();
+
             matiereService = new MatierePremiereService();
             productionService = new ProductionService();
             excelExportService = new ExcelExportService(productionService);
@@ -692,6 +701,49 @@ public class TrackerController {
         configurerBarreDeCompte(role);
 
         LOGGER.info("Interface configurée pour le rôle : " + role.getDisplayName());
+    }
+
+    /**
+     * Adapte la mise en page a la taille de la fenetre.
+     *
+     * Les deux panneaux du haut se partagent la largeur quand il y a la place et
+     * s'empilent en pleine largeur sinon ; la liste des productions occupe une
+     * part constante de la hauteur disponible plutot qu'une hauteur figee.
+     */
+    private void configurerResponsive() {
+        if (panneauxSuperieurs != null) {
+            panneauxSuperieurs.widthProperty().addListener(
+                    (obs, ancienne, nouvelle) -> ajusterPanneauxSuperieurs(nouvelle.doubleValue()));
+        }
+
+        if (zoneProductions != null) {
+            zoneProductions.sceneProperty().addListener((obs, ancienne, scene) -> {
+                if (scene != null) {
+                    zoneProductions.prefHeightProperty().bind(
+                            scene.heightProperty().multiply(0.45));
+                }
+            });
+        }
+    }
+
+    /**
+     * Repartit la largeur entre le panneau matiere et le panneau statistiques.
+     * Visible pour les tests.
+     */
+    void ajusterPanneauxSuperieurs(double largeurDisponible) {
+        if (panneauMatiere == null || panneauStatistiques == null || largeurDisponible <= 0) {
+            return;
+        }
+
+        double espacement = panneauxSuperieurs != null ? panneauxSuperieurs.getHgap() : 20.0;
+        boolean deuxColonnes = largeurDisponible >= LARGEUR_MINIMALE_DEUX_COLONNES;
+
+        double largeurCible = deuxColonnes
+                ? (largeurDisponible - espacement) / 2
+                : largeurDisponible;
+
+        panneauMatiere.setPrefWidth(largeurCible);
+        panneauStatistiques.setPrefWidth(largeurCible);
     }
 
     /**

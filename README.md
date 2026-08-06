@@ -31,6 +31,9 @@ performance (%)    = sorties réelles / sorties attendues × 100
 - **Comptes protégés par mot de passe**, avec deux rôles : **Administrateur** (accès
   complet) et **Utilisateur** (accès restreint)
 - **Sauvegarde automatique** de la base à chaque démarrage (10 copies conservées)
+- **Interface adaptative** : les panneaux se côtoient sur grand écran et s'empilent
+  sur petit, les rangées de boutons passent à la ligne, rien n'est tronqué jusqu'à
+  640 px de large
 - Persistance locale **SQLite** (base créée automatiquement au premier lancement)
 
 ## Sécurité et données
@@ -119,10 +122,14 @@ mvn clean javafx:run
 mvn test
 ```
 
-74 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+93 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
 calcul de performance, agrégation statistique), la persistance, la couche service
-(productions et matières premières), l'authentification et la sauvegarde
-automatique.
+(productions et matières premières), l'authentification, la sauvegarde automatique
+et l'interface (chargement des vues, liaison FXML, mise en page adaptative).
+
+Les tests d'interface démarrent le moteur JavaFX et inspectent la disposition
+réelle à différentes tailles de fenêtre : ils échouent si un `fx:id` disparaît ou
+si le contenu cesse de s'adapter.
 
 Les tests de persistance tournent sur une base SQLite jetable
 (`target/test-tracker.db`), jamais sur `production_tracker.db`. Le chemin est

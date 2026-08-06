@@ -140,6 +140,10 @@ public class LoginController {
             stage.setScene(new Scene(root, 1000, 700));
             stage.setTitle("Performance Tracker - " + role.getDisplayName());
             stage.setResizable(true);
+            // Assez petit pour un poste en 1024x768, assez grand pour rester lisible
+            stage.setMinWidth(640);
+            stage.setMinHeight(520);
+            stage.centerOnScreen();
             stage.show();
 
         } catch (Exception e) {

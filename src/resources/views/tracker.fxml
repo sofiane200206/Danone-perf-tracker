@@ -6,9 +6,14 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
-<ScrollPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.TrackerController">
+
+<!-- fitToWidth : sans lui le contenu garde sa largeur preferee et laisse une
+     bande vide a droite des que la fenetre s'agrandit -->
+<ScrollPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="controller.TrackerController"
+            fitToWidth="true" hbarPolicy="AS_NEEDED">
     <content>
-        <VBox spacing="20.0">
+        <VBox spacing="20.0" minWidth="320.0">
             <padding>
                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
             </padding>
@@ -16,36 +21,35 @@
             <!-- Header -->
             <VBox spacing="10.0">
                 <HBox spacing="10.0" alignment="CENTER_LEFT">
-                    <VBox spacing="5.0" HBox.hgrow="ALWAYS">
-                        <Label text="🏭 Tracker de Production Industrielle" textFill="#2c3e50">
+                    <VBox spacing="5.0" HBox.hgrow="ALWAYS" minWidth="0.0">
+                        <Label text="🏭 Tracker de Production Industrielle" textFill="#2c3e50" wrapText="true">
                             <font>
                                 <Font name="System Bold" size="24.0" />
                             </font>
                         </Label>
                     </VBox>
 
-                    <!-- Logo Danone en haut à droite -->
-                    <ImageView fx:id="logoDanone" fitHeight="100.0" fitWidth="200.0" preserveRatio="true">
+                    <ImageView fx:id="logoDanone" fitHeight="80.0" fitWidth="160.0" preserveRatio="true">
                         <image>
                             <Image url="@images/logo_danone.png" />
                         </image>
                     </ImageView>
                 </HBox>
 
-                <!-- Barre de compte -->
-                <HBox spacing="10.0" alignment="CENTER_RIGHT">
+                <!-- Barre de compte : passe a la ligne si la fenetre est etroite -->
+                <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_RIGHT" columnHalignment="RIGHT">
                     <Label fx:id="labelUtilisateurConnecte" text="" textFill="#495057" />
                     <Button fx:id="btnGererComptes" mnemonicParsing="false" text="👥 Comptes"
                             style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
                     <Button fx:id="btnChangerMotDePasse" mnemonicParsing="false" text="🔑 Mot de passe"
                             style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
-                </HBox>
+                </FlowPane>
                 <Separator />
             </VBox>
 
             <!-- Section Création Matière Première -->
             <VBox spacing="15.0" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-border-radius: 8;">
-                <Label text="📦 Création d'une Nouvelle Matière Première" textFill="#495057">
+                <Label text="📦 Création d'une Nouvelle Matière Première" textFill="#495057" wrapText="true">
                     <font>
                         <Font name="System Bold" size="16.0" />
                     </font>
@@ -53,34 +57,38 @@
 
                 <GridPane hgap="15.0" vgap="10.0">
                     <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="150.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="200.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="150.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="100.0" />
+                        <ColumnConstraints hgrow="NEVER" minWidth="140.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="120.0" />
+                        <ColumnConstraints hgrow="NEVER" minWidth="140.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="90.0" />
                     </columnConstraints>
 
-                    <Label text="Nom de la matière :" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                    <TextField fx:id="matierePremiereField" promptText="Ex: Farine de blé" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                    <Label text="Nom de la matière :" GridPane.columnIndex="0" GridPane.rowIndex="0" wrapText="true" />
+                    <TextField fx:id="matierePremiereField" promptText="Ex: Farine de blé" maxWidth="Infinity"
+                               GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
-                    <Label text="Quantité entrée idéale (kg) :" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                    <TextField fx:id="quantiteEntreeIdealeField" promptText="Ex: 1000" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                    <Label text="Quantité entrée idéale (kg) :" GridPane.columnIndex="0" GridPane.rowIndex="1" wrapText="true" />
+                    <TextField fx:id="quantiteEntreeIdealeField" promptText="Ex: 1000" maxWidth="Infinity"
+                               GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-                    <Label text="Nombre de sorties :" GridPane.columnIndex="2" GridPane.rowIndex="0" />
-                    <Spinner fx:id="nombreSortiesSpinner" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+                    <Label text="Nombre de sorties :" GridPane.columnIndex="2" GridPane.rowIndex="0" wrapText="true" />
+                    <Spinner fx:id="nombreSortiesSpinner" maxWidth="Infinity"
+                             GridPane.columnIndex="3" GridPane.rowIndex="0" />
                 </GridPane>
 
                 <VBox fx:id="sortiesIdealesContainer" spacing="8.0" />
 
-                <HBox alignment="CENTER_LEFT" spacing="15.0">
+                <FlowPane hgap="15.0" vgap="10.0" alignment="CENTER_LEFT">
                     <Button fx:id="btnCreerMatiere" mnemonicParsing="false" text="✅ Créer la Matière Première" style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;" />
-                </HBox>
+                </FlowPane>
             </VBox>
 
-            <!-- Section Sélection Matière et Statistiques -->
-            <HBox spacing="20.0">
-                <!-- Sélection de matière -->
-                <VBox spacing="10.0" style="-fx-background-color: #e3f2fd; -fx-padding: 15; -fx-border-color: #90caf9; -fx-border-width: 1; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
-                    <Label text="🎯 Matière Première Active" textFill="#1976d2">
+            <!-- Matière active et statistiques : cote a cote si large, empiles si etroit.
+                 Les largeurs sont pilotees par TrackerController.configurerResponsive(). -->
+            <FlowPane fx:id="panneauxSuperieurs" hgap="20.0" vgap="20.0">
+                <VBox fx:id="panneauMatiere" spacing="10.0" minWidth="280.0"
+                      style="-fx-background-color: #e3f2fd; -fx-padding: 15; -fx-border-color: #90caf9; -fx-border-width: 1; -fx-border-radius: 8;">
+                    <Label text="🎯 Matière Première Active" textFill="#1976d2" wrapText="true">
                         <font>
                             <Font name="System Bold" size="14.0" />
                         </font>
@@ -88,18 +96,16 @@
 
                     <ComboBox fx:id="matierePremiereCombo" maxWidth="Infinity" promptText="Sélectionnez une matière première..." />
                     <Label fx:id="labelMatiereSelectionnee" text="📦 Aucune matière sélectionnée" textFill="#666666" wrapText="true" />
-                    <HBox spacing="10.0" alignment="CENTER_LEFT">
-
-
+                    <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_LEFT">
                         <Button fx:id="btnSupprimerMatiere" mnemonicParsing="false" text="🗑️ Supprimer"
                                 style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;"
                                 onAction="#supprimerMatiereActuelle" />
-                    </HBox>
+                    </FlowPane>
                 </VBox>
 
-                <!-- Statistiques -->
-                <VBox spacing="10.0" style="-fx-background-color: #f3e5f5; -fx-padding: 15; -fx-border-color: #ce93d8; -fx-border-width: 1; -fx-border-radius: 8;" HBox.hgrow="ALWAYS">
-                    <Label text="📊 Statistiques de Performance" textFill="#7b1fa2">
+                <VBox fx:id="panneauStatistiques" spacing="10.0" minWidth="280.0"
+                      style="-fx-background-color: #f3e5f5; -fx-padding: 15; -fx-border-color: #ce93d8; -fx-border-width: 1; -fx-border-radius: 8;">
+                    <Label text="📊 Statistiques de Performance" textFill="#7b1fa2" wrapText="true">
                         <font>
                             <Font name="System Bold" size="14.0" />
                         </font>
@@ -109,80 +115,80 @@
                     <Label fx:id="labelPlusGrossePerte" text="📉 Plus grosse perte : N/A" textFill="#d32f2f" wrapText="true" />
                     <Label fx:id="labelMoyenneGlobale" text="📊 Moyenne globale : N/A" textFill="#1976d2" wrapText="true" />
                 </VBox>
-            </HBox>
+            </FlowPane>
 
             <!-- Section Filtrage -->
             <VBox spacing="15.0" style="-fx-background-color: #fff3e0; -fx-padding: 15; -fx-border-color: #ffb74d; -fx-border-width: 1; -fx-border-radius: 8;">
-                <Label text="🔍 Filtrage par Période" textFill="#f57c00">
+                <Label text="🔍 Filtrage par Période" textFill="#f57c00" wrapText="true">
                     <font>
                         <Font name="System Bold" size="16.0" />
                     </font>
                 </Label>
 
-                <Label fx:id="labelFiltrageActuel" text="📅 Filtrage actuel : Tout" textFill="#666666" />
+                <Label fx:id="labelFiltrageActuel" text="📅 Filtrage actuel : Tout" textFill="#666666" wrapText="true" />
 
-                <!-- Boutons de filtrage rapide -->
-                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                <FlowPane hgap="10.0" vgap="10.0" alignment="CENTER_LEFT">
                     <Button mnemonicParsing="false" onAction="#filtrer7DerniersJours" text="📅 7 derniers jours" style="-fx-background-color: #17a2b8; -fx-text-fill: white;" />
                     <Button mnemonicParsing="false" onAction="#filtrerSemaineCourante" text="📅 Semaine courante" style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
                     <Button mnemonicParsing="false" onAction="#filtrerMoisCourant" text="📅 Mois courant" style="-fx-background-color: #fd7e14; -fx-text-fill: white;" />
                     <Button fx:id="btnVoirTout" mnemonicParsing="false" text="🔄 Voir tout" style="-fx-background-color: #6f42c1; -fx-text-fill: white;" />
-                </HBox>
+                </FlowPane>
 
-                <!-- Filtrage personnalisé -->
-                <HBox spacing="15.0" alignment="CENTER_LEFT">
+                <FlowPane hgap="15.0" vgap="10.0" alignment="CENTER_LEFT">
                     <Label text="Du :" />
-                    <DatePicker fx:id="dateDebutFiltre" />
+                    <DatePicker fx:id="dateDebutFiltre" prefWidth="150.0" />
                     <Label text="Au :" />
-                    <DatePicker fx:id="dateFinFiltre" />
+                    <DatePicker fx:id="dateFinFiltre" prefWidth="150.0" />
                     <Button fx:id="btnAppliquerFiltre" mnemonicParsing="false" text="🔍 Appliquer" style="-fx-background-color: #20c997; -fx-text-fill: white; -fx-font-weight: bold;" />
-                </HBox>
+                </FlowPane>
             </VBox>
 
             <!-- Section Productions -->
             <VBox spacing="15.0">
-                <HBox alignment="CENTER_LEFT" spacing="15.0">
-                    <Label text="🏭 Gestion des Productions" textFill="#495057">
+                <FlowPane hgap="15.0" vgap="10.0" alignment="CENTER_LEFT">
+                    <Label text="🏭 Gestion des Productions" textFill="#495057" wrapText="true">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
                     </Label>
                     <Button mnemonicParsing="false" onAction="#ajouterProduction" text="➕ Ajouter une Production" style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;" />
-                </HBox>
+                </FlowPane>
 
                 <Separator />
 
-                <!-- Container pour les productions -->
-                <ScrollPane fitToWidth="true" maxHeight="600.0" style="-fx-background: transparent;">
+                <!-- Hauteur ajustee a la fenetre par le controleur -->
+                <ScrollPane fx:id="zoneProductions" fitToWidth="true" prefHeight="400.0"
+                            style="-fx-background: transparent;">
                     <content>
                         <VBox fx:id="joursContainer" spacing="15.0">
                             <padding>
                                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                             </padding>
-
-                            <!-- Message d'aide initial -->
-
                         </VBox>
                     </content>
                 </ScrollPane>
             </VBox>
-            <Button fx:id="btnExporterExcel"
-                    text="📊 Exporter vers Excel"
-                    styleClass="export-button"
-                    style="-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16 8 16;">
-                <tooltip>
-                    <Tooltip text="Exporter toutes les productions de la matière sélectionnée vers un fichier Excel"/>
-                </tooltip>
-            </Button>
-            <Button fx:id="btnResetComplet"
-                    text="🔄 Reset BDD (avec export)"
-                    onAction="#resetBaseDonnees"
-                    style="-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold;"
-                    prefWidth="200"/>
+
+            <FlowPane hgap="15.0" vgap="10.0" alignment="CENTER_LEFT">
+                <Button fx:id="btnExporterExcel"
+                        text="📊 Exporter vers Excel"
+                        styleClass="export-button"
+                        style="-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16 8 16;">
+                    <tooltip>
+                        <Tooltip text="Exporter toutes les productions de la matière sélectionnée vers un fichier Excel"/>
+                    </tooltip>
+                </Button>
+                <Button fx:id="btnResetComplet"
+                        text="🔄 Reset BDD (avec export)"
+                        onAction="#resetBaseDonnees"
+                        style="-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold;" />
+            </FlowPane>
+
             <!-- Footer -->
             <VBox spacing="5.0" alignment="CENTER">
                 <Separator />
-                <Label text="💡 Tracker de Production - Suivez vos performances industrielles en temps réel" textFill="#6c757d">
+                <Label text="💡 Tracker de Production - Suivez vos performances industrielles en temps réel"
+                       textFill="#6c757d" wrapText="true">
                     <font>
                         <Font size="12.0" />
                     </font>
