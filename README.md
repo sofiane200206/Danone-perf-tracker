@@ -75,9 +75,14 @@ mvn clean javafx:run
 mvn test
 ```
 
-19 tests JUnit 5 couvrent le cœur métier : la règle de comptabilisation des
-productions, le calcul de performance journalier et l'agrégation statistique
-sur une période (`test/`).
+26 tests JUnit 5 dans `test/` couvrent le cœur métier — règle de comptabilisation
+des productions, calcul de performance journalier, agrégation statistique — ainsi
+que la persistance (création, relecture, filtrage par période, mise à jour,
+suppression sans lignes orphelines).
+
+Les tests de persistance tournent sur une base SQLite jetable
+(`target/test-tracker.db`), jamais sur `production_tracker.db`. Le chemin est
+surchargeable via la propriété système `performancetracker.db.url`.
 
 ### Avec IntelliJ IDEA
 

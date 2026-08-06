@@ -6,11 +6,14 @@ import java.util.logging.Level;
 
 public class DatabaseManager {
     private static final Logger LOGGER = Logger.getLogger(DatabaseManager.class.getName());
-    private static final String DB_URL = "jdbc:sqlite:production_tracker.db";
+    private static final String DB_URL_DEFAUT = "jdbc:sqlite:production_tracker.db";
     private static DatabaseManager instance;
+    private final String dbUrl;
     private Connection connection;
 
     private DatabaseManager() {
+        // Surchargeable pour que les tests travaillent sur une base jetable
+        this.dbUrl = System.getProperty("performancetracker.db.url", DB_URL_DEFAUT);
         initializeDatabase();
     }
 
@@ -23,7 +26,7 @@ public class DatabaseManager {
 
     private void initializeDatabase() {
         try {
-            connection = DriverManager.getConnection(DB_URL);
+            connection = DriverManager.getConnection(dbUrl);
             createTables();
             LOGGER.info("Base de données initialisée avec succès");
         } catch (SQLException e) {
@@ -102,7 +105,7 @@ public class DatabaseManager {
     public Connection getConnection() {
         try {
             if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(DB_URL);
+                connection = DriverManager.getConnection(dbUrl);
             }
             return connection;
         } catch (SQLException e) {
