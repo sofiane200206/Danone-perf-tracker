@@ -24,6 +24,15 @@ public class DatabaseManager {
         return instance;
     }
 
+    /**
+     * Chemin du fichier SQLite utilise, extrait de l'URL JDBC.
+     * Sert notamment a le sauvegarder avant ouverture.
+     */
+    public static String getCheminFichierBase() {
+        String url = System.getProperty("performancetracker.db.url", DB_URL_DEFAUT);
+        return url.startsWith("jdbc:sqlite:") ? url.substring("jdbc:sqlite:".length()) : url;
+    }
+
     private void initializeDatabase() {
         try {
             connection = DriverManager.getConnection(dbUrl);
