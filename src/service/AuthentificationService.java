@@ -5,6 +5,7 @@ import model.UserRole;
 import model.Utilisateur;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -110,6 +111,83 @@ public class AuthentificationService {
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Creation de compte impossible", e);
             throw new ServiceException("Creation du compte impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /** Tous les comptes, pour l'ecran de gestion. */
+    public List<Utilisateur> listerComptes() throws ServiceException {
+        try {
+            return utilisateurDAO.listerTous();
+        } catch (SQLException e) {
+            throw new ServiceException("Lecture des comptes impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Desactive un compte. Un administrateur ne peut ni se desactiver lui-meme,
+     * ni retirer le dernier administrateur actif : sans cela l'application
+     * deviendrait inadministrable.
+     */
+    public void desactiverCompte(Long id, String identifiantDemandeur) throws ServiceException {
+        if (id == null) {
+            throw new ServiceException("Compte introuvable.");
+        }
+
+        try {
+            Utilisateur cible = utilisateurDAO.listerTous().stream()
+                    .filter(u -> id.equals(u.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ServiceException("Compte introuvable."));
+
+            if (cible.getIdentifiant().equals(identifiantDemandeur)) {
+                throw new ServiceException("Vous ne pouvez pas désactiver votre propre compte.");
+            }
+
+            if (cible.getRole() == UserRole.ADMIN && cible.isActif()
+                    && utilisateurDAO.compterAdministrateursActifs() <= 1) {
+                throw new ServiceException(
+                        "Impossible de désactiver le dernier administrateur actif.");
+            }
+
+            utilisateurDAO.desactiver(id);
+            LOGGER.info("Compte désactivé : " + cible.getIdentifiant());
+
+        } catch (SQLException e) {
+            throw new ServiceException("Désactivation impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /** Reactive un compte precedemment desactive. */
+    public void reactiverCompte(Long id) throws ServiceException {
+        if (id == null) {
+            throw new ServiceException("Compte introuvable.");
+        }
+        try {
+            utilisateurDAO.reactiver(id);
+        } catch (SQLException e) {
+            throw new ServiceException("Réactivation impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Reinitialise le mot de passe d'un compte sans connaitre l'ancien.
+     * Reserve a un administrateur, pour depanner un operateur qui a oublie le sien.
+     */
+    public void reinitialiserMotDePasse(Long id, char[] nouveau) throws ServiceException {
+        if (id == null) {
+            throw new ServiceException("Compte introuvable.");
+        }
+
+        String refus = MotDePasseService.motifDeRefus(nouveau == null ? null : new String(nouveau));
+        if (refus != null) {
+            throw new ServiceException(refus);
+        }
+
+        try {
+            String sel = MotDePasseService.genererSel();
+            utilisateurDAO.mettreAJourMotDePasse(id, MotDePasseService.hacher(nouveau, sel), sel);
+        } catch (SQLException e) {
+            throw new ServiceException("Réinitialisation impossible : " + e.getMessage(), e);
         }
     }
 

@@ -54,6 +54,9 @@ public class TrackerController {
     @FXML private Button btnVoirTout;
     @FXML private Label labelFiltrageActuel;
     @FXML private Label labelMatiereSelectionnee;
+    @FXML private Label labelUtilisateurConnecte;
+    @FXML private Button btnGererComptes;
+    @FXML private Button btnChangerMotDePasse;
     // Services
     private boolean modeModification = false;
     private ExcelExportService excelExportService;
@@ -686,7 +689,39 @@ public class TrackerController {
             labelMatiereSelectionnee.setText(roleText + " | 📦 Aucune matière sélectionnée");
         }
 
+        configurerBarreDeCompte(role);
+
         LOGGER.info("Interface configurée pour le rôle : " + role.getDisplayName());
+    }
+
+    /**
+     * La gestion des comptes n'est proposee qu'aux administrateurs ; chacun peut
+     * en revanche changer son propre mot de passe.
+     */
+    private void configurerBarreDeCompte(UserRole role) {
+        String identifiant = SessionManager.getInstance().getIdentifiantConnecte();
+
+        if (labelUtilisateurConnecte != null) {
+            labelUtilisateurConnecte.setText(
+                    (identifiant != null ? "👤 " + identifiant : "") + "  ·  " + role.getDisplayName());
+        }
+
+        GestionComptesDialog dialogues = new GestionComptesDialog(new AuthentificationService());
+
+        if (btnGererComptes != null) {
+            boolean administrateur = role == UserRole.ADMIN;
+            btnGererComptes.setVisible(administrateur);
+            btnGererComptes.setManaged(administrateur);
+            btnGererComptes.setOnAction(e -> dialogues.afficherGestion(identifiant));
+        }
+
+        if (btnChangerMotDePasse != null) {
+            // Sans compte identifie (ancien mode sans authentification), rien a changer
+            boolean possible = identifiant != null;
+            btnChangerMotDePasse.setVisible(possible);
+            btnChangerMotDePasse.setManaged(possible);
+            btnChangerMotDePasse.setOnAction(e -> dialogues.afficherChangementMotDePasse(identifiant));
+        }
     }
     private void creerChampsSortiesIdeales(int nombre) {
         sortiesIdealesContainer.getChildren().clear();

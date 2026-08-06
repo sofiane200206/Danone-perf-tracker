@@ -5,6 +5,8 @@ import model.Utilisateur;
 
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -64,6 +66,52 @@ public class UtilisateurDAO {
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next() ? mapper(rs) : null;
             }
+        }
+    }
+
+    /** Tous les comptes, actifs et desactives, par ordre alphabetique. */
+    public List<Utilisateur> listerTous() throws SQLException {
+        String query = """
+            SELECT id, identifiant, empreinte_mot_de_passe, sel, role, date_creation, actif
+            FROM utilisateurs
+            ORDER BY identifiant
+            """;
+
+        List<Utilisateur> utilisateurs = new ArrayList<>();
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                Utilisateur utilisateur = mapper(rs);
+                if (utilisateur != null) {
+                    utilisateurs.add(utilisateur);
+                }
+            }
+        }
+        return utilisateurs;
+    }
+
+    /** Nombre d'administrateurs encore actifs : sert a ne pas tous les desactiver. */
+    public int compterAdministrateursActifs() throws SQLException {
+        String query = "SELECT COUNT(*) FROM utilisateurs WHERE role = ? AND actif = true";
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, UserRole.ADMIN.name());
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    public void reactiver(Long id) throws SQLException {
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "UPDATE utilisateurs SET actif = true WHERE id = ?")) {
+            stmt.setLong(1, id);
+            stmt.executeUpdate();
         }
     }
 

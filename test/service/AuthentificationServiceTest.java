@@ -147,4 +147,84 @@ class AuthentificationServiceTest {
         assertEquals(UserRole.USER,
                 service.authentifier("operateur", "MotDePasse1".toCharArray()).getRole());
     }
+
+    @Test
+    @DisplayName("Les comptes sont listes pour l'ecran de gestion")
+    void listageDesComptes() throws ServiceException {
+        service.creerCompte("admin", "MotDePasse1".toCharArray(), UserRole.ADMIN);
+        service.creerCompte("operateur", "MotDePasse1".toCharArray(), UserRole.USER);
+
+        assertEquals(2, service.listerComptes().size());
+    }
+
+    @Test
+    @DisplayName("Un administrateur ne peut pas desactiver son propre compte")
+    void impossibleDeSeDesactiverSoiMeme() throws ServiceException {
+        Utilisateur admin = service.creerCompte("admin", "MotDePasse1".toCharArray(), UserRole.ADMIN);
+        service.creerCompte("admin2", "MotDePasse1".toCharArray(), UserRole.ADMIN);
+
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> service.desactiverCompte(admin.getId(), "admin"));
+        assertTrue(e.getMessage().contains("propre compte"));
+    }
+
+    @Test
+    @DisplayName("Le dernier administrateur actif ne peut pas etre desactive")
+    void dernierAdministrateurProtege() throws ServiceException {
+        Utilisateur seulAdmin = service.creerCompte("admin", "MotDePasse1".toCharArray(), UserRole.ADMIN);
+        service.creerCompte("operateur", "MotDePasse1".toCharArray(), UserRole.USER);
+
+        // Meme demande par quelqu'un d'autre, l'application resterait inadministrable
+        ServiceException e = assertThrows(ServiceException.class,
+                () -> service.desactiverCompte(seulAdmin.getId(), "operateur"));
+        assertTrue(e.getMessage().contains("dernier administrateur"));
+    }
+
+    @Test
+    @DisplayName("Un compte peut etre desactive puis reactive")
+    void desactivationPuisReactivation() throws ServiceException {
+        service.creerCompte("admin", "MotDePasse1".toCharArray(), UserRole.ADMIN);
+        Utilisateur operateur =
+                service.creerCompte("operateur", "MotDePasse1".toCharArray(), UserRole.USER);
+
+        service.desactiverCompte(operateur.getId(), "admin");
+        assertNull(service.authentifier("operateur", "MotDePasse1".toCharArray()));
+
+        service.reactiverCompte(operateur.getId());
+        assertNotNull(service.authentifier("operateur", "MotDePasse1".toCharArray()));
+    }
+
+    @Test
+    @DisplayName("Un administrateur reinitialise le mot de passe d'un operateur")
+    void reinitialisationParAdministrateur() throws ServiceException {
+        Utilisateur operateur =
+                service.creerCompte("operateur", "AncienMotDePasse1".toCharArray(), UserRole.USER);
+
+        service.reinitialiserMotDePasse(operateur.getId(), "NouveauMotDePasse1".toCharArray());
+
+        assertNull(service.authentifier("operateur", "AncienMotDePasse1".toCharArray()));
+        assertNotNull(service.authentifier("operateur", "NouveauMotDePasse1".toCharArray()));
+    }
+
+    @Test
+    @DisplayName("Une reinitialisation vers un mot de passe faible est refusee")
+    void reinitialisationVersMotDePasseFaibleRefusee() throws ServiceException {
+        Utilisateur operateur =
+                service.creerCompte("operateur", "MotDePasse1".toCharArray(), UserRole.USER);
+
+        assertThrows(ServiceException.class,
+                () -> service.reinitialiserMotDePasse(operateur.getId(), "court".toCharArray()));
+
+        assertNotNull(service.authentifier("operateur", "MotDePasse1".toCharArray()),
+                "l'ancien mot de passe doit rester valable");
+    }
+
+    @Test
+    @DisplayName("Agir sur un compte inexistant est refuse")
+    void compteInexistantRefuse() {
+        assertThrows(ServiceException.class, () -> service.desactiverCompte(null, "admin"));
+        assertThrows(ServiceException.class, () -> service.desactiverCompte(999_999L, "admin"));
+        assertThrows(ServiceException.class,
+                () -> service.reinitialiserMotDePasse(null, "MotDePasse1".toCharArray()));
+    }
 }

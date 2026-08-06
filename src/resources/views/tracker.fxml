@@ -31,6 +31,15 @@
                         </image>
                     </ImageView>
                 </HBox>
+
+                <!-- Barre de compte -->
+                <HBox spacing="10.0" alignment="CENTER_RIGHT">
+                    <Label fx:id="labelUtilisateurConnecte" text="" textFill="#495057" />
+                    <Button fx:id="btnGererComptes" mnemonicParsing="false" text="👥 Comptes"
+                            style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
+                    <Button fx:id="btnChangerMotDePasse" mnemonicParsing="false" text="🔑 Mot de passe"
+                            style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
+                </HBox>
                 <Separator />
             </VBox>
 
