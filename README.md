@@ -92,10 +92,10 @@ mvn clean javafx:run
 mvn test
 ```
 
-54 tests JUnit 5 dans `test/` couvrent le cœur métier — règle de comptabilisation
-des productions, calcul de performance journalier, agrégation statistique — la
-persistance (création, relecture, filtrage par période, mise à jour, suppression
-sans lignes orphelines), l'authentification et la sauvegarde automatique.
+74 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+calcul de performance, agrégation statistique), la persistance, la couche service
+(productions et matières premières), l'authentification et la sauvegarde
+automatique.
 
 Les tests de persistance tournent sur une base SQLite jetable
 (`target/test-tracker.db`), jamais sur `production_tracker.db`. Le chemin est
