@@ -98,6 +98,19 @@ public class DatabaseManager {
             )
             """,
 
+                // Comptes de connexion (mot de passe jamais stocké en clair)
+                """
+            CREATE TABLE IF NOT EXISTS utilisateurs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                identifiant TEXT NOT NULL UNIQUE,
+                empreinte_mot_de_passe TEXT NOT NULL,
+                sel TEXT NOT NULL,
+                role TEXT NOT NULL,
+                date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+                actif BOOLEAN DEFAULT TRUE
+            )
+            """,
+
                 // Index pour optimiser les requêtes
                 "CREATE INDEX IF NOT EXISTS idx_production_date ON productions(date_production)",
                 "CREATE INDEX IF NOT EXISTS idx_production_matiere ON productions(matiere_premiere_id)",

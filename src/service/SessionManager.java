@@ -9,12 +9,13 @@ import model.UserRole;
 public class SessionManager {
     private static SessionManager instance;
     private UserRole currentRole;
+    private String identifiantConnecte;
 
     private SessionManager() {
         // Constructeur privé pour le pattern Singleton
     }
 
-    public static SessionManager getInstance() {
+    public static synchronized SessionManager getInstance() {
         if (instance == null) {
             instance = new SessionManager();
         }
@@ -25,8 +26,19 @@ public class SessionManager {
         this.currentRole = role;
     }
 
+    /** Ouvre la session pour un compte authentifié. */
+    public void login(model.Utilisateur utilisateur) {
+        this.currentRole = utilisateur.getRole();
+        this.identifiantConnecte = utilisateur.getIdentifiant();
+    }
+
+    public String getIdentifiantConnecte() {
+        return identifiantConnecte;
+    }
+
     public void logout() {
         this.currentRole = null;
+        this.identifiantConnecte = null;
     }
 
     public UserRole getCurrentRole() {

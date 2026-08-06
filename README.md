@@ -28,8 +28,25 @@ performance (%)    = sorties réelles / sorties attendues × 100
 - Statistiques : moyenne, meilleur jour, pire jour, performance globale
 - Filtrage par période (dates de début/fin)
 - **Export Excel** des productions et des statistiques (Apache POI)
-- Deux rôles à la connexion : **Administrateur** (accès complet) et **Utilisateur** (accès restreint)
+- **Comptes protégés par mot de passe**, avec deux rôles : **Administrateur** (accès
+  complet) et **Utilisateur** (accès restreint)
+- **Sauvegarde automatique** de la base à chaque démarrage (10 copies conservées)
 - Persistance locale **SQLite** (base créée automatiquement au premier lancement)
+
+## Sécurité et données
+
+Les mots de passe ne sont jamais stockés : seule une empreinte PBKDF2-HMAC-SHA256
+(210 000 itérations) est conservée, avec un sel aléatoire propre à chaque compte.
+La vérification se fait en temps constant, et un échec de connexion renvoie le même
+message que l'identifiant existe ou non.
+
+Aucun compte par défaut n'est livré. Au premier démarrage, l'application demande la
+création du compte administrateur : un mot de passe livré en dur serait connu de tous
+et rarement changé.
+
+Avant chaque ouverture de la base, une copie horodatée est déposée dans `sauvegardes/`
+et les 10 plus récentes sont conservées. Un échec de sauvegarde est journalisé mais
+n'empêche jamais l'application de démarrer.
 
 ## Stack technique
 
@@ -75,10 +92,10 @@ mvn clean javafx:run
 mvn test
 ```
 
-26 tests JUnit 5 dans `test/` couvrent le cœur métier — règle de comptabilisation
-des productions, calcul de performance journalier, agrégation statistique — ainsi
-que la persistance (création, relecture, filtrage par période, mise à jour,
-suppression sans lignes orphelines).
+54 tests JUnit 5 dans `test/` couvrent le cœur métier — règle de comptabilisation
+des productions, calcul de performance journalier, agrégation statistique — la
+persistance (création, relecture, filtrage par période, mise à jour, suppression
+sans lignes orphelines), l'authentification et la sauvegarde automatique.
 
 Les tests de persistance tournent sur une base SQLite jetable
 (`target/test-tracker.db`), jamais sur `production_tracker.db`. Le chemin est
@@ -104,7 +121,7 @@ racine du projet au premier lancement.
 
 ## Pistes d'amélioration
 
-- Étendre la couverture de tests aux couches DAO et service
-- Authentification réelle (le login actuel est un sélecteur de rôle)
+- Étendre la couverture de tests à l'interface et aux services restants
+- Gestion des comptes depuis l'interface (créer un opérateur, changer son mot de passe)
 - Unifier la gestion des dépendances sur Maven (aujourd'hui dupliquée avec IntelliJ)
 - Nettoyage du code hérité de la première version (`ModeleIdeal`, `Production`)
