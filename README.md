@@ -153,10 +153,10 @@ mvn clean javafx:run
 mvn test
 ```
 
-145 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+154 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
 calcul de performance, agrégation statistique), la persistance, les migrations de
 schéma, la couche service (productions et matières premières), l'authentification,
-la sauvegarde automatique, l'interface (chargement des vues, liaison FXML, mise en
+la sauvegarde automatique, l'export Excel, l'interface (chargement des vues, liaison FXML, mise en
 page adaptative) et les formulaires de gestion des comptes.
 
 Les tests d'interface démarrent le moteur JavaFX et inspectent la disposition
