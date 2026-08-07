@@ -83,6 +83,12 @@ src/
 └── resources/    Vues FXML (login.fxml, tracker.fxml)
 ```
 
+## Avant de déployer
+
+Une check-list de recette à dérouler écran en main est disponible dans
+[RECETTE.md](RECETTE.md) : validation métier, installation, comptes et
+permissions, contrôles de saisie, sauvegarde et restauration.
+
 ## Distribuer l'application
 
 ```bash
