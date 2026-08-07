@@ -114,6 +114,20 @@ class MiseEnPageResponsiveTest extends BaseTestJavaFx {
     }
 
     @Test
+    @DisplayName("Les conteneurs manipules par le controleur restent des Pane")
+    void conteneursManipulablesParLeControleur() throws Exception {
+        // Le controleur ajoute et retire des boutons dans le parent de
+        // btnCreerMatiere. Le passage de HBox a FlowPane avait provoque un
+        // ClassCastException au premier ajout de production.
+        Parent racine = afficher(1200, 700);
+
+        javafx.scene.Node bouton = racine.lookup("#btnCreerMatiere");
+        assertNotNull(bouton, "le bouton de creation doit exister");
+        assertInstanceOf(javafx.scene.layout.Pane.class, bouton.getParent(),
+                "le controleur a besoin d'acceder aux enfants de ce conteneur");
+    }
+
+    @Test
     @DisplayName("La hauteur de la liste des productions suit celle de la fenetre")
     void hauteurDeLaListeSuitLaFenetre() throws Exception {
         double hauteurPetite = region(afficher(1000, 600), "zoneProductions").getPrefHeight();

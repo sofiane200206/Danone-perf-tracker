@@ -138,114 +138,33 @@ public class TrackerController {
 
         public void sauvegarderProduction() {
             try {
-                // ✅ NOUVEAU : Validation de la date
-                LocalDate dateProduction = datePicker.getValue();
-                if (dateProduction == null) {
-                    resultatLabel.setText("⚠️ Veuillez sélectionner une date");
+                // Toutes les regles de saisie sont regroupees dans ValidateurProduction :
+                // creation et modification appliquent ainsi exactement les memes controles.
+                List<String> sortiesTextes = sortiesReellesFields.stream()
+                        .map(TextField::getText)
+                        .collect(Collectors.toList());
+
+                ValidateurProduction.Resultat validation = ValidateurProduction.valider(
+                        datePicker.getValue(),
+                        timeField.getLocalTime(),
+                        entreeReelle.getText(),
+                        sortiesTextes,
+                        matiereActuelle);
+
+                if (!validation.estAcceptee()) {
+                    resultatLabel.setText("⚠️ " + validation.getRefus());
                     resultatLabel.setTextFill(Color.RED);
                     return;
                 }
 
-                // ✅ NOUVEAU : Validation date cohérente
-                if (dateProduction.isAfter(LocalDate.now())) {
-                    resultatLabel.setText("⚠️ La date ne peut pas être dans le futur");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
+                production.setDateProduction(datePicker.getValue());
+                production.setHeureProduction(timeField.getLocalTime());
+                production.setQuantiteEntreeReelle(validation.getEntree());
 
-                if (dateProduction.isBefore(LocalDate.now().minusYears(1))) {
-                    resultatLabel.setText("⚠️ La date ne peut pas être antérieure à 1 an");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
-
-                production.setDateProduction(dateProduction);
-
-                // ✅ NOUVEAU : Validation de l'heure
-                LocalTime heureProduction = timeField.getLocalTime();
-                if (heureProduction == null) {
-                    resultatLabel.setText("⚠️ Veuillez saisir une heure valide");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
-
-                production.setHeureProduction(heureProduction);
-
-                // ✅ VALIDATION AMÉLIORÉE DE L'ENTRÉE RÉELLE
-                String entreeText = entreeReelle.getText().trim();
-                if (entreeText.isEmpty()) {
-                    resultatLabel.setText("⚠️ Veuillez saisir la quantité d'entrée réelle");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
-
-                double quantiteEntree;
-                try {
-                    quantiteEntree = Double.parseDouble(entreeText);
-                } catch (NumberFormatException e) {
-                    resultatLabel.setText("⚠️ La quantité d'entrée doit être un nombre valide");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
-
-                if (quantiteEntree <= 0) {
-                    resultatLabel.setText("⚠️ La quantité d'entrée doit être positive");
-                    resultatLabel.setTextFill(Color.RED);
-                    return;
-                }
-
-                // ✅ NOUVEAU : Validation par rapport à l'idéal
-                if (matiereActuelle != null) {
-                    double entreeIdeale = matiereActuelle.getQuantiteEntreeIdeale();
-                    if (quantiteEntree > entreeIdeale * 2) {
-                        resultatLabel.setText("⚠️ Entrée très éloignée de l'idéal (" + entreeIdeale + "kg). Confirmez la valeur.");
-                        resultatLabel.setTextFill(Color.ORANGE);
-                        // On ne return pas, on laisse continuer avec un avertissement
-                    }
-                }
-
-                production.setQuantiteEntreeReelle(quantiteEntree);
-
-                // ✅ VALIDATION AMÉLIORÉE DES SORTIES
                 production.getSortiesReelles().clear();
-                double totalSorties = 0;
-
-                for (int i = 0; i < sortiesReellesFields.size(); i++) {
-                    String sortieText = sortiesReellesFields.get(i).getText().trim();
-
-                    if (sortieText.isEmpty()) {
-                        resultatLabel.setText("⚠️ Veuillez saisir toutes les sorties réelles");
-                        resultatLabel.setTextFill(Color.RED);
-                        return;
-                    }
-
-                    double quantiteSortie;
-                    try {
-                        quantiteSortie = Double.parseDouble(sortieText);
-                    } catch (NumberFormatException e) {
-                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " doit être un nombre valide");
-                        resultatLabel.setTextFill(Color.RED);
-                        return;
-                    }
-
-                    if (quantiteSortie < 0) {
-                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " ne peut pas être négative");
-                        resultatLabel.setTextFill(Color.RED);
-                        return;
-                    }
-
-                    if (quantiteSortie > quantiteEntree) {
-                        resultatLabel.setText("⚠️ La sortie " + (i + 1) + " (" + quantiteSortie + "kg) ne peut pas dépasser l'entrée (" + quantiteEntree + "kg)");
-                        resultatLabel.setTextFill(Color.RED);
-                        return;
-                    }
-
-                    totalSorties += quantiteSortie;
-                    production.ajouterSortieReelle(i + 1, quantiteSortie);
+                for (int i = 0; i < validation.getSorties().size(); i++) {
+                    production.ajouterSortieReelle(i + 1, validation.getSorties().get(i));
                 }
-
-                // ✅ NOUVEAU : Validation cohérence globale des sorties
-
 
                 // ✅ VALIDATION FINALE (reste identique)
                 if (!production.isDonneeComplete()) {
@@ -267,8 +186,15 @@ public class TrackerController {
                     LOGGER.info("Production mise à jour - ID: " + production.getId());
                 }
 
-                resultatLabel.setTextFill(Color.GREEN);
-                System.out.println("Avant désactivation - Nombre de champs de sorties : " + sortiesReellesFields.size());
+                // Les avertissements ne bloquent pas mais doivent etre vus
+                if (!validation.getAvertissements().isEmpty()) {
+                    resultatLabel.setText(resultatLabel.getText()
+                            + "  ⚠️ " + String.join(" ", validation.getAvertissements()));
+                    resultatLabel.setTextFill(Color.ORANGE);
+                } else {
+                    resultatLabel.setTextFill(Color.GREEN);
+                }
+
                 desactiverChampsSaisie();
                 calculerPerformances();
 
@@ -1029,7 +955,8 @@ public class TrackerController {
     // NOUVELLE méthode pour gérer le bouton Annuler
     private void ajouterBoutonAnnulerSiNecessaire() {
         // Vérifier si le bouton Annuler existe déjà
-        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        // Pane et non HBox : le conteneur est un FlowPane depuis la mise en page adaptative
+        Pane parentBox = (Pane) btnCreerMatiere.getParent();
         boolean boutonAnnulerExiste = parentBox.getChildren().stream()
                 .anyMatch(node -> node instanceof Button &&
                         ((Button) node).getText().contains("Annuler"));
@@ -1046,7 +973,8 @@ public class TrackerController {
         viderFormulaire();
 
         // Supprimer le bouton Annuler
-        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        // Pane et non HBox : le conteneur est un FlowPane depuis la mise en page adaptative
+        Pane parentBox = (Pane) btnCreerMatiere.getParent();
         parentBox.getChildren().removeIf(node ->
                 node instanceof Button && ((Button) node).getText().contains("Annuler"));
     }
@@ -1065,7 +993,8 @@ public class TrackerController {
         modeModification = false;
 
         // NOUVEAU : Supprimer le bouton Annuler s'il existe
-        HBox parentBox = (HBox) btnCreerMatiere.getParent();
+        // Pane et non HBox : le conteneur est un FlowPane depuis la mise en page adaptative
+        Pane parentBox = (Pane) btnCreerMatiere.getParent();
         if (parentBox != null) {
             parentBox.getChildren().removeIf(node ->
                     node instanceof Button && ((Button) node).getText().contains("Annuler"));
