@@ -2,6 +2,9 @@ package interfaces;
 
 import javafx.application.Platform;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
@@ -15,6 +18,16 @@ import java.util.concurrent.TimeUnit;
 public abstract class BaseTestJavaFx {
 
     private static boolean demarre = false;
+
+    /**
+     * Exceptions survenues sur le fil d'affichage.
+     *
+     * JavaFX intercepte les erreurs levees dans un gestionnaire d'evenement et se
+     * contente de les afficher : sans ce releve, un plantage au clic passerait
+     * inapercu des tests.
+     */
+    private static final List<Throwable> erreursInterface =
+            Collections.synchronizedList(new ArrayList<>());
 
     protected static synchronized void demarrerJavaFx() throws InterruptedException {
         if (demarre) {
@@ -31,7 +44,30 @@ public abstract class BaseTestJavaFx {
             throw new IllegalStateException("Le moteur JavaFX n'a pas demarre");
         }
         Platform.setImplicitExit(false);
+
+        Platform.runLater(() -> Thread.currentThread().setUncaughtExceptionHandler(
+                (fil, erreur) -> erreursInterface.add(erreur)));
+
         demarre = true;
+    }
+
+    /** A appeler avant chaque parcours pour repartir d'un releve vierge. */
+    protected static void oublierLesErreursInterface() {
+        erreursInterface.clear();
+    }
+
+    /**
+     * Echoue si une exception a ete levee sur le fil d'affichage depuis le
+     * dernier appel a {@link #oublierLesErreursInterface()}.
+     */
+    protected static void verifierAucuneErreurInterface() {
+        synchronized (erreursInterface) {
+            if (!erreursInterface.isEmpty()) {
+                Throwable premiere = erreursInterface.get(0);
+                throw new AssertionError(
+                        "Exception non gérée dans l'interface : " + premiere, premiere);
+            }
+        }
     }
 
     /** Execute une action sur le fil JavaFX et en renvoie le resultat. */

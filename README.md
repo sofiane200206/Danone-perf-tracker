@@ -153,7 +153,7 @@ mvn clean javafx:run
 mvn test
 ```
 
-139 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+145 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
 calcul de performance, agrégation statistique), la persistance, les migrations de
 schéma, la couche service (productions et matières premières), l'authentification,
 la sauvegarde automatique, l'interface (chargement des vues, liaison FXML, mise en
@@ -162,6 +162,12 @@ page adaptative) et les formulaires de gestion des comptes.
 Les tests d'interface démarrent le moteur JavaFX et inspectent la disposition
 réelle à différentes tailles de fenêtre : ils échouent si un `fx:id` disparaît ou
 si le contenu cesse de s'adapter.
+
+Les tests de parcours vont plus loin : ils sélectionnent une matière, ajoutent une
+production, remplissent les champs et déclenchent l'enregistrement, puis vérifient
+la base. Toute exception non gérée survenue sur le fil d'affichage pendant le
+parcours fait échouer le test — JavaFX se contenterait sinon de l'afficher dans la
+console.
 
 Les tests de persistance tournent sur une base SQLite jetable
 (`target/test-tracker.db`), jamais sur `production_tracker.db`. Le chemin est
