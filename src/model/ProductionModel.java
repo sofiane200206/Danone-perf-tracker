@@ -108,7 +108,18 @@ public class ProductionModel {
                 && sortiesReelles.stream().allMatch(s -> s.getQuantiteReelle() >= 0);
     }
 
+    /**
+     * Met a jour le statut selon la completude des donnees.
+     *
+     * Une production signalee en ERREUR est laissee telle quelle : ce statut
+     * traduit un jugement humain sur la fiabilite de la mesure, qu'un controle
+     * automatique de completude n'a pas a effacer. Utiliser {@link #leverErreur()}
+     * pour le retirer.
+     */
     public void validerProduction() {
+        if (hasErreur()) {
+            return;
+        }
         if (isDonneeComplete()) {
             this.statut = "VALIDE";
             this.messageErreur = null;
@@ -118,9 +129,17 @@ public class ProductionModel {
         }
     }
 
+    /** Signale une mesure jugee douteuse : elle sera exclue des calculs. */
     public void marquerErreur(String messageErreur) {
         this.statut = "ERREUR";
         this.messageErreur = messageErreur;
+    }
+
+    /** Retire le signalement d'erreur et reevalue le statut. */
+    public void leverErreur() {
+        this.statut = "INCOMPLETE";
+        this.messageErreur = null;
+        validerProduction();
     }
 
     public boolean hasErreur() {

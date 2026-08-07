@@ -219,6 +219,79 @@ class ProductionServiceTest {
     }
 
     @Test
+    @DisplayName("Une production signalee douteuse conserve ce statut en base")
+    void signalementConserveEnBase() throws ServiceException {
+        ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        service.ajouterProduction(p);
+
+        service.marquerEnErreur(p, "Balance déréglée");
+
+        ProductionModel relue = service.getProductions().get(0);
+        assertEquals("ERREUR", relue.getStatut(),
+                "le statut ne doit pas etre ecrase par la validation automatique");
+        assertEquals("Balance déréglée", relue.getMessageErreur());
+        assertFalse(relue.isComptabilisable(), "elle doit sortir des calculs");
+    }
+
+    @Test
+    @DisplayName("Une mise a jour ulterieure n'efface pas le signalement")
+    void miseAJourNEffacePasLeSignalement() throws ServiceException {
+        ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        service.ajouterProduction(p);
+        service.marquerEnErreur(p, "Mesure suspecte");
+
+        p.setQuantiteEntreeReelle(120.0);
+        service.mettreAJourProduction(p);
+
+        assertEquals("ERREUR", service.getProductions().get(0).getStatut(),
+                "corriger une valeur ne lave pas le doute sur la mesure");
+    }
+
+    @Test
+    @DisplayName("Lever le signalement remet la production dans les calculs")
+    void leveeDuSignalement() throws ServiceException {
+        ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        service.ajouterProduction(p);
+        service.marquerEnErreur(p, "Doute");
+
+        service.leverErreur(p);
+
+        ProductionModel relue = service.getProductions().get(0);
+        assertEquals("VALIDE", relue.getStatut());
+        assertNull(relue.getMessageErreur());
+        assertTrue(relue.isComptabilisable());
+    }
+
+    @Test
+    @DisplayName("Une production signalee est exclue du calcul de performance")
+    void productionSignaleeExclueDesStatistiques() throws ServiceException {
+        ProductionModel gardee = production(LE_5_JANVIER, 100.0, 60.0, 20.0);
+        ProductionModel douteuse = production(LE_5_JANVIER, 100.0, 60.0, 20.0);
+        service.ajouterProduction(gardee);
+        service.ajouterProduction(douteuse);
+
+        service.marquerEnErreur(douteuse, "Double saisie");
+
+        JourneeProduction journee = service.grouperParJour(service.getProductions())
+                .get(LE_5_JANVIER);
+        assertEquals(100.0, journee.getTotalEntreeJour(),
+                "seule la production fiable doit compter");
+    }
+
+    @Test
+    @DisplayName("Signaler exige un motif et une production enregistree")
+    void signalementExigeMotifEtProductionEnregistree() throws ServiceException {
+        ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        service.ajouterProduction(p);
+
+        assertThrows(ServiceException.class, () -> service.marquerEnErreur(p, "   "));
+        assertThrows(ServiceException.class, () -> service.marquerEnErreur(p, null));
+        assertThrows(ServiceException.class, () -> service.marquerEnErreur(null, "Motif"));
+        assertThrows(ServiceException.class,
+                () -> service.marquerEnErreur(production(LE_5_JANVIER, 100.0, 55.0, 18.0), "Motif"));
+    }
+
+    @Test
     @DisplayName("Le comptage par matiere suit les ajouts")
     void comptageParMatiere() throws ServiceException {
         assertEquals(0, service.compterProductionsParMatiere(matiere.getId()));

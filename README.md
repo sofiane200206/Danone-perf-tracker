@@ -34,6 +34,9 @@ performance (%)    = sorties réelles / sorties attendues × 100
   refusées)
 - **Traçabilité des saisies** : chaque production retient le compte qui l'a
   enregistrée, y compris dans les exports Excel
+- **Signalement des mesures douteuses** : une production peut être marquée comme
+  telle avec un motif ; elle reste consultable mais sort des statistiques et des
+  exports jusqu'à ce que le signalement soit levé
 - **Sauvegarde automatique** de la base à chaque démarrage (10 copies conservées)
 - **Interface adaptative** : les panneaux se côtoient sur grand écran et s'empilent
   sur petit, les rangées de boutons passent à la ligne, rien n'est tronqué jusqu'à
@@ -153,7 +156,7 @@ mvn clean javafx:run
 mvn test
 ```
 
-154 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+166 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
 calcul de performance, agrégation statistique), la persistance, les migrations de
 schéma, la couche service (productions et matières premières), l'authentification,
 la sauvegarde automatique, l'export Excel, l'interface (chargement des vues, liaison FXML, mise en

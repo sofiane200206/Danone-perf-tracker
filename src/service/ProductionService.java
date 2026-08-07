@@ -188,6 +188,44 @@ public class ProductionService {
             throw new ServiceException("Erreur lors de la mise à jour : " + e.getMessage(), e);
         }
     }
+    /**
+     * Signale une production comme douteuse : elle reste consultable mais
+     * n'alimente plus les statistiques ni les exports.
+     */
+    public void marquerEnErreur(ProductionModel production, String motif) throws ServiceException {
+        if (production == null || production.getId() == null) {
+            throw new ServiceException("Production invalide");
+        }
+        if (motif == null || motif.isBlank()) {
+            throw new ServiceException("Indiquez pourquoi cette mesure est douteuse.");
+        }
+
+        try {
+            production.marquerErreur(motif.trim());
+            productionDAO.mettreAJour(production);
+            LOGGER.info("Production signalée douteuse : ID " + production.getId());
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du signalement de la production", e);
+            throw new ServiceException("Signalement impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /** Retire le signalement et remet la production dans les calculs. */
+    public void leverErreur(ProductionModel production) throws ServiceException {
+        if (production == null || production.getId() == null) {
+            throw new ServiceException("Production invalide");
+        }
+
+        try {
+            production.leverErreur();
+            productionDAO.mettreAJour(production);
+            LOGGER.info("Signalement retiré : ID " + production.getId());
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Erreur lors du retrait du signalement", e);
+            throw new ServiceException("Retrait du signalement impossible : " + e.getMessage(), e);
+        }
+    }
+
     public int supprimerToutesProductionsMatiere(Long matiereId) throws ServiceException {
         if (matiereId == null) {
             throw new ServiceException("ID de matière première invalide");

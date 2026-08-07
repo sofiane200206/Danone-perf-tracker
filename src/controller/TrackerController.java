@@ -136,6 +136,52 @@ public class TrackerController {
         }
 
 
+        /**
+         * Bouton permettant de signaler une mesure douteuse, ou de retirer ce
+         * signalement. Une production signalee reste consultable mais sort des
+         * statistiques et des exports.
+         */
+        private Button creerBoutonSignalement() {
+            Button bouton = new Button();
+            bouton.setId("btnSignalement");
+
+            boolean douteuse = production.hasErreur();
+            bouton.setText(douteuse ? "✅ Rétablir" : "⚠️ Douteuse");
+            bouton.setStyle(douteuse
+                    ? "-fx-background-color: #28a745; -fx-text-fill: white;"
+                    : "-fx-background-color: #ffc107; -fx-text-fill: #333;");
+
+            // Signaler suppose que la production existe deja en base
+            bouton.setDisable(production.getId() == null);
+
+            bouton.setOnAction(e -> {
+                try {
+                    if (production.hasErreur()) {
+                        productionService.leverErreur(production);
+                    } else {
+                        TextInputDialog saisie = new TextInputDialog();
+                        saisie.setTitle("Signaler une mesure douteuse");
+                        saisie.setHeaderText("Production du " + production.getDateProduction());
+                        saisie.setContentText("Motif :");
+
+                        Optional<String> motif = saisie.showAndWait();
+                        if (motif.isEmpty() || motif.get().isBlank()) {
+                            return;
+                        }
+                        productionService.marquerEnErreur(production, motif.get());
+                    }
+
+                    chargerProductionsExistantes();
+                    calculerPerformances();
+
+                } catch (ServiceException ex) {
+                    afficherErreur("Signalement impossible", ex.getMessage());
+                }
+            });
+
+            return bouton;
+        }
+
         public void sauvegarderProduction() {
             try {
                 // Toutes les regles de saisie sont regroupees dans ValidateurProduction :
@@ -265,6 +311,7 @@ public class TrackerController {
                 btnSupprimer.setOnAction(e -> supprimerProduction());
 
                 boutons.getChildren().addAll(btnSauvegarder, btnSupprimer);
+                boutons.getChildren().add(creerBoutonSignalement());
                 container.getChildren().add(boutons);
             }
             return container;
@@ -476,6 +523,7 @@ public class TrackerController {
                 btnSupprimer.setOnAction(e -> supprimerProduction());
 
                 boutons.getChildren().addAll(btnSauvegarder, btnModifier, btnSupprimer);
+                boutons.getChildren().add(creerBoutonSignalement());
                 container.getChildren().add(boutons);
 
                 // Restaurer les valeurs
@@ -544,6 +592,7 @@ public class TrackerController {
                     btnSupprimer.setOnAction(e -> supprimerProduction());
 
                     boutons.getChildren().addAll(btnSauvegarder, btnModifier, btnSupprimer);
+                boutons.getChildren().add(creerBoutonSignalement());
                     container.getChildren().add(boutons);
 
                     // Restaurer les valeurs
