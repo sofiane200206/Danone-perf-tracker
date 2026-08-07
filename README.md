@@ -103,6 +103,25 @@ du compte administrateur, qui pourra ensuite créer les comptes des opérateurs.
 > `sauvegardes/`, à côté de la base. Ces copies vivent sur le même disque : pour une
 > vraie protection, sauvegardez ce dossier ailleurs (serveur, disque externe).
 
+### Mettre à jour une installation existante
+
+Remplacez le dossier de l'application en **conservant `production_tracker.db` et
+`sauvegardes/`**. Au démarrage, la base est sauvegardée puis mise au niveau du
+nouveau schéma automatiquement : les données déjà saisies sont conservées.
+
+Pour faire évoluer le schéma, ajoutez une migration dans
+[`SchemaApplicatif`](src/dao/SchemaApplicatif.java) — **sans jamais modifier une
+migration déjà livrée**, puisque les bases des utilisateurs l'ont déjà appliquée :
+
+```java
+new Migration(2, "Ajout du commentaire de production",
+        "ALTER TABLE productions ADD COLUMN commentaire TEXT")
+```
+
+Chaque migration s'exécute dans sa propre transaction. Si l'une échoue, elle est
+annulée entièrement, les suivantes ne sont pas tentées et le démarrage s'interrompt
+avec l'erreur : une base à moitié migrée serait pire qu'une base non migrée.
+
 ## Lancer le projet
 
 **Prérequis :** JDK 17+ (développé avec le JDK 21).
@@ -122,10 +141,11 @@ mvn clean javafx:run
 mvn test
 ```
 
-93 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
-calcul de performance, agrégation statistique), la persistance, la couche service
-(productions et matières premières), l'authentification, la sauvegarde automatique
-et l'interface (chargement des vues, liaison FXML, mise en page adaptative).
+103 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+calcul de performance, agrégation statistique), la persistance, les migrations de
+schéma, la couche service (productions et matières premières), l'authentification,
+la sauvegarde automatique et l'interface (chargement des vues, liaison FXML, mise
+en page adaptative).
 
 Les tests d'interface démarrent le moteur JavaFX et inspectent la disposition
 réelle à différentes tailles de fenêtre : ils échouent si un `fx:id` disparaît ou
