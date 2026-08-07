@@ -26,6 +26,74 @@ public class GestionComptesDialog {
         this.authentificationService = authentificationService;
     }
 
+    // ------------------------------------------------------------------
+    // Regles des formulaires, isolees de l'affichage pour etre testables.
+    // Chacune renvoie le motif de refus, ou null si l'operation a reussi.
+    // ------------------------------------------------------------------
+
+    String creerCompte(String identifiant, String motDePasse, String confirmation, UserRole role) {
+        if (!motDePasse.equals(confirmation)) {
+            return "Les deux mots de passe ne correspondent pas.";
+        }
+        char[] caracteres = motDePasse.toCharArray();
+        try {
+            authentificationService.creerCompte(identifiant, caracteres, role);
+            return null;
+        } catch (ServiceException e) {
+            return e.getMessage();
+        } finally {
+            MotDePasseService.effacer(caracteres);
+        }
+    }
+
+    String changerMotDePasse(String identifiant, String actuel, String nouveau, String confirmation) {
+        if (!nouveau.equals(confirmation)) {
+            return "Les deux mots de passe ne correspondent pas.";
+        }
+        char[] ancien = actuel.toCharArray();
+        char[] cible = nouveau.toCharArray();
+        try {
+            authentificationService.changerMotDePasse(identifiant, ancien, cible);
+            return null;
+        } catch (ServiceException e) {
+            return e.getMessage();
+        } finally {
+            MotDePasseService.effacer(ancien);
+            MotDePasseService.effacer(cible);
+        }
+    }
+
+    String reinitialiserMotDePasse(Utilisateur cible, String nouveau, String confirmation) {
+        if (!nouveau.equals(confirmation)) {
+            return "Les deux mots de passe ne correspondent pas.";
+        }
+        char[] caracteres = nouveau.toCharArray();
+        try {
+            authentificationService.reinitialiserMotDePasse(cible.getId(), caracteres);
+            return null;
+        } catch (ServiceException e) {
+            return e.getMessage();
+        } finally {
+            MotDePasseService.effacer(caracteres);
+        }
+    }
+
+    String basculerActivation(Utilisateur cible, String identifiantDemandeur) {
+        if (cible == null) {
+            return "Sélectionnez d'abord un compte.";
+        }
+        try {
+            if (cible.isActif()) {
+                authentificationService.desactiverCompte(cible.getId(), identifiantDemandeur);
+            } else {
+                authentificationService.reactiverCompte(cible.getId());
+            }
+            return null;
+        } catch (ServiceException e) {
+            return e.getMessage();
+        }
+    }
+
     /** Ecran d'administration des comptes : liste, creation, activation, reinitialisation. */
     public void afficherGestion(String identifiantConnecte) {
         Dialog<Void> dialogue = new Dialog<>();
@@ -70,20 +138,12 @@ public class GestionComptesDialog {
         });
 
         btnActiver.setOnAction(e -> {
-            Utilisateur choisi = liste.getSelectionModel().getSelectedItem();
-            if (choisi == null) {
-                afficher(message, "Sélectionnez d'abord un compte.");
-                return;
-            }
-            try {
-                if (choisi.isActif()) {
-                    authentificationService.desactiverCompte(choisi.getId(), identifiantConnecte);
-                } else {
-                    authentificationService.reactiverCompte(choisi.getId());
-                }
+            String refus = basculerActivation(
+                    liste.getSelectionModel().getSelectedItem(), identifiantConnecte);
+            if (refus != null) {
+                afficher(message, refus);
+            } else {
                 rafraichir(liste, message);
-            } catch (ServiceException ex) {
-                afficher(message, ex.getMessage());
             }
         });
 
@@ -110,6 +170,13 @@ public class GestionComptesDialog {
 
     /** Formulaire de creation d'un compte. Retourne vrai si un compte a ete cree. */
     public boolean afficherCreationCompte() {
+        Dialog<ButtonType> dialogue = construireDialogueCreation();
+        ButtonType valider = dialogue.getDialogPane().getButtonTypes().get(0);
+        return dialogue.showAndWait().filter(valider::equals).isPresent();
+    }
+
+    /** Construit le formulaire sans l'afficher, pour que les tests puissent l'inspecter. */
+    Dialog<ButtonType> construireDialogueCreation() {
         Dialog<ButtonType> dialogue = new Dialog<>();
         dialogue.setTitle("Nouveau compte");
         dialogue.setHeaderText("Créer un compte utilisateur");
@@ -118,13 +185,17 @@ public class GestionComptesDialog {
         dialogue.getDialogPane().getButtonTypes().addAll(valider, ButtonType.CANCEL);
 
         TextField identifiant = new TextField();
+        identifiant.setId("champIdentifiant");
         identifiant.setPromptText("Identifiant (3 caractères minimum)");
         PasswordField motDePasse = new PasswordField();
+        motDePasse.setId("champMotDePasse");
         motDePasse.setPromptText("Mot de passe");
         PasswordField confirmation = new PasswordField();
+        confirmation.setId("champConfirmation");
         confirmation.setPromptText("Confirmer le mot de passe");
 
         ComboBox<UserRole> role = new ComboBox<>();
+        role.setId("choixRole");
         role.getItems().addAll(UserRole.values());
         role.setValue(UserRole.USER);
         role.setConverter(new javafx.util.StringConverter<>() {
@@ -133,6 +204,7 @@ public class GestionComptesDialog {
         });
 
         Label message = new Label();
+        message.setId("labelMessage");
         message.setWrapText(true);
         message.setStyle("-fx-text-fill: #c0392b;");
 
@@ -152,28 +224,31 @@ public class GestionComptesDialog {
         // Empeche la fermeture tant que la saisie n'est pas valide
         Button boutonValider = (Button) dialogue.getDialogPane().lookupButton(valider);
         boutonValider.addEventFilter(javafx.event.ActionEvent.ACTION, evenement -> {
-            message.setText("");
-            if (!motDePasse.getText().equals(confirmation.getText())) {
-                message.setText("Les deux mots de passe ne correspondent pas.");
+            String refus = creerCompte(identifiant.getText(), motDePasse.getText(),
+                    confirmation.getText(), role.getValue());
+            message.setText(refus == null ? "" : refus);
+            if (refus != null) {
                 evenement.consume();
-                return;
-            }
-            char[] caracteres = motDePasse.getText().toCharArray();
-            try {
-                authentificationService.creerCompte(identifiant.getText(), caracteres, role.getValue());
-            } catch (ServiceException e) {
-                message.setText(e.getMessage());
-                evenement.consume();
-            } finally {
-                MotDePasseService.effacer(caracteres);
             }
         });
 
-        return dialogue.showAndWait().filter(valider::equals).isPresent();
+        return dialogue;
     }
 
     /** Changement de son propre mot de passe, ancien mot de passe exige. */
     public void afficherChangementMotDePasse(String identifiant) {
+        Dialog<ButtonType> dialogue = construireDialogueChangementMotDePasse(identifiant);
+        ButtonType valider = dialogue.getDialogPane().getButtonTypes().get(0);
+
+        if (dialogue.showAndWait().filter(valider::equals).isPresent()) {
+            Alert succes = new Alert(Alert.AlertType.INFORMATION, "Mot de passe modifié.");
+            succes.setHeaderText(null);
+            succes.showAndWait();
+        }
+    }
+
+    /** Construit le formulaire sans l'afficher, pour que les tests puissent l'inspecter. */
+    Dialog<ButtonType> construireDialogueChangementMotDePasse(String identifiant) {
         Dialog<ButtonType> dialogue = new Dialog<>();
         dialogue.setTitle("Changer mon mot de passe");
         dialogue.setHeaderText("Compte : " + identifiant);
@@ -182,13 +257,17 @@ public class GestionComptesDialog {
         dialogue.getDialogPane().getButtonTypes().addAll(valider, ButtonType.CANCEL);
 
         PasswordField actuel = new PasswordField();
+        actuel.setId("champActuel");
         actuel.setPromptText("Mot de passe actuel");
         PasswordField nouveau = new PasswordField();
+        nouveau.setId("champNouveau");
         nouveau.setPromptText("Nouveau mot de passe");
         PasswordField confirmation = new PasswordField();
+        confirmation.setId("champConfirmation");
         confirmation.setPromptText("Confirmer");
 
         Label message = new Label();
+        message.setId("labelMessage");
         message.setWrapText(true);
         message.setStyle("-fx-text-fill: #c0392b;");
 
@@ -205,33 +284,25 @@ public class GestionComptesDialog {
 
         Button boutonValider = (Button) dialogue.getDialogPane().lookupButton(valider);
         boutonValider.addEventFilter(javafx.event.ActionEvent.ACTION, evenement -> {
-            message.setText("");
-            if (!nouveau.getText().equals(confirmation.getText())) {
-                message.setText("Les deux mots de passe ne correspondent pas.");
+            String refus = changerMotDePasse(identifiant, actuel.getText(),
+                    nouveau.getText(), confirmation.getText());
+            message.setText(refus == null ? "" : refus);
+            if (refus != null) {
                 evenement.consume();
-                return;
-            }
-            char[] ancien = actuel.getText().toCharArray();
-            char[] cible = nouveau.getText().toCharArray();
-            try {
-                authentificationService.changerMotDePasse(identifiant, ancien, cible);
-            } catch (ServiceException e) {
-                message.setText(e.getMessage());
-                evenement.consume();
-            } finally {
-                MotDePasseService.effacer(ancien);
-                MotDePasseService.effacer(cible);
             }
         });
 
-        if (dialogue.showAndWait().filter(valider::equals).isPresent()) {
-            Alert succes = new Alert(Alert.AlertType.INFORMATION, "Mot de passe modifié.");
-            succes.setHeaderText(null);
-            succes.showAndWait();
-        }
+        return dialogue;
     }
 
     private boolean afficherReinitialisation(Utilisateur cible) {
+        Dialog<ButtonType> dialogue = construireDialogueReinitialisation(cible);
+        ButtonType valider = dialogue.getDialogPane().getButtonTypes().get(0);
+        return dialogue.showAndWait().filter(valider::equals).isPresent();
+    }
+
+    /** Construit le formulaire sans l'afficher, pour que les tests puissent l'inspecter. */
+    Dialog<ButtonType> construireDialogueReinitialisation(Utilisateur cible) {
         Dialog<ButtonType> dialogue = new Dialog<>();
         dialogue.setTitle("Réinitialiser un mot de passe");
         dialogue.setHeaderText("Compte : " + cible.getIdentifiant());
@@ -240,11 +311,14 @@ public class GestionComptesDialog {
         dialogue.getDialogPane().getButtonTypes().addAll(valider, ButtonType.CANCEL);
 
         PasswordField nouveau = new PasswordField();
+        nouveau.setId("champNouveau");
         nouveau.setPromptText("Nouveau mot de passe");
         PasswordField confirmation = new PasswordField();
+        confirmation.setId("champConfirmation");
         confirmation.setPromptText("Confirmer");
 
         Label message = new Label();
+        message.setId("labelMessage");
         message.setWrapText(true);
         message.setStyle("-fx-text-fill: #c0392b;");
 
@@ -262,24 +336,14 @@ public class GestionComptesDialog {
 
         Button boutonValider = (Button) dialogue.getDialogPane().lookupButton(valider);
         boutonValider.addEventFilter(javafx.event.ActionEvent.ACTION, evenement -> {
-            message.setText("");
-            if (!nouveau.getText().equals(confirmation.getText())) {
-                message.setText("Les deux mots de passe ne correspondent pas.");
+            String refus = reinitialiserMotDePasse(cible, nouveau.getText(), confirmation.getText());
+            message.setText(refus == null ? "" : refus);
+            if (refus != null) {
                 evenement.consume();
-                return;
-            }
-            char[] caracteres = nouveau.getText().toCharArray();
-            try {
-                authentificationService.reinitialiserMotDePasse(cible.getId(), caracteres);
-            } catch (ServiceException e) {
-                message.setText(e.getMessage());
-                evenement.consume();
-            } finally {
-                MotDePasseService.effacer(caracteres);
             }
         });
 
-        return dialogue.showAndWait().filter(valider::equals).isPresent();
+        return dialogue;
     }
 
     private void rafraichir(ListView<Utilisateur> liste, Label message) {
