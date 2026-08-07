@@ -168,6 +168,57 @@ class ProductionServiceTest {
     }
 
     @Test
+    @DisplayName("La production retient le compte connecte qui l'a saisie")
+    void auteurRenseigneDepuisLaSession() throws ServiceException {
+        SessionManager.getInstance().logout();
+        model.Utilisateur operateur = new model.Utilisateur();
+        operateur.setIdentifiant("operateur_jour");
+        operateur.setRole(model.UserRole.USER);
+        SessionManager.getInstance().login(operateur);
+
+        try {
+            ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+            service.ajouterProduction(p);
+
+            assertEquals("operateur_jour", p.getSaisiPar());
+            assertEquals("operateur_jour", service.getProductions().get(0).getSaisiPar());
+        } finally {
+            SessionManager.getInstance().logout();
+        }
+    }
+
+    @Test
+    @DisplayName("Un auteur deja renseigne n'est pas ecrase par la session")
+    void auteurExistantConserve() throws ServiceException {
+        model.Utilisateur autre = new model.Utilisateur();
+        autre.setIdentifiant("quelquun_dautre");
+        autre.setRole(model.UserRole.USER);
+        SessionManager.getInstance().login(autre);
+
+        try {
+            ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+            p.setSaisiPar("auteur_dorigine");
+            service.ajouterProduction(p);
+
+            assertEquals("auteur_dorigine", p.getSaisiPar());
+        } finally {
+            SessionManager.getInstance().logout();
+        }
+    }
+
+    @Test
+    @DisplayName("Sans session ouverte, la saisie reste possible sans auteur")
+    void saisieSansSessionRestePossible() throws ServiceException {
+        SessionManager.getInstance().logout();
+
+        ProductionModel p = production(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        service.ajouterProduction(p);
+
+        assertNotNull(p.getId(), "l'absence d'auteur ne doit pas bloquer la saisie");
+        assertNull(p.getSaisiPar());
+    }
+
+    @Test
     @DisplayName("Le comptage par matiere suit les ajouts")
     void comptageParMatiere() throws ServiceException {
         assertEquals(0, service.compterProductionsParMatiere(matiere.getId()));

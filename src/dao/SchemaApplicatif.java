@@ -95,9 +95,21 @@ public final class SchemaApplicatif {
             "CREATE INDEX IF NOT EXISTS idx_sortie_production ON sorties_reelles(production_id)"
     ));
 
+    /**
+     * Version 2 : trace du compte ayant saisi chaque production.
+     *
+     * Sur un poste partage entre plusieurs operateurs, savoir qui a enregistre
+     * une valeur permet de lever un doute sans avoir a interroger tout le monde.
+     * Les productions anterieures gardent une valeur vide : elles datent d'avant
+     * cette trace, et le pretendre serait une information fausse.
+     */
+    private static final Migration TRACE_DE_SAISIE = new Migration(2,
+            "Trace du compte ayant saisi la production",
+            "ALTER TABLE productions ADD COLUMN saisi_par TEXT");
+
     /** Toutes les migrations connues, dans l'ordre. */
     public static List<Migration> migrations() {
-        return List.of(SCHEMA_INITIAL);
+        return List.of(SCHEMA_INITIAL, TRACE_DE_SAISIE);
     }
 
     /** Version attendue par cette version de l'application. */

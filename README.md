@@ -29,7 +29,11 @@ performance (%)    = sorties réelles / sorties attendues × 100
 - Filtrage par période (dates de début/fin)
 - **Export Excel** des productions et des statistiques (Apache POI)
 - **Comptes protégés par mot de passe**, avec deux rôles : **Administrateur** (accès
-  complet) et **Utilisateur** (accès restreint)
+  complet) et **Utilisateur** (saisie, consultation et export uniquement — la
+  création de matières, leur suppression et la réinitialisation de la base lui sont
+  refusées)
+- **Traçabilité des saisies** : chaque production retient le compte qui l'a
+  enregistrée, y compris dans les exports Excel
 - **Sauvegarde automatique** de la base à chaque démarrage (10 copies conservées)
 - **Interface adaptative** : les panneaux se côtoient sur grand écran et s'empilent
   sur petit, les rangées de boutons passent à la ligne, rien n'est tronqué jusqu'à
@@ -93,6 +97,14 @@ Pour déployer : copier le dossier `PerformanceTracker/` sur le poste et lancer
 `PerformanceTracker.exe`. Au premier démarrage, l'application demande la création
 du compte administrateur, qui pourra ensuite créer les comptes des opérateurs.
 
+> **Une installation = une base.** Plusieurs personnes partagent l'application en
+> partageant le **poste**, chacune avec son propre compte : leurs saisies vont dans
+> le même fichier `production_tracker.db`. Ne placez jamais ce fichier sur un
+> lecteur réseau ou un dossier synchronisé (OneDrive, SharePoint) pour l'ouvrir
+> depuis plusieurs machines : SQLite a besoin d'un verrouillage fiable que ces
+> supports ne garantissent pas, et le fichier finirait par se corrompre. Pour un
+> usage réellement multi-postes en simultané, il faudrait une base serveur.
+
 > **Où placer le dossier :** la base de données et les sauvegardes sont créées à
 > côté de l'exécutable. Installez-le dans un emplacement où l'utilisateur a le droit
 > d'écrire (`C:\PerformanceTracker`, un disque partagé…) et **non** dans
@@ -141,7 +153,7 @@ mvn clean javafx:run
 mvn test
 ```
 
-117 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
+122 tests JUnit 5 dans `test/` couvrent le cœur métier (règle de comptabilisation,
 calcul de performance, agrégation statistique), la persistance, les migrations de
 schéma, la couche service (productions et matières premières), l'authentification,
 la sauvegarde automatique, l'interface (chargement des vues, liaison FXML, mise en

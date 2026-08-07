@@ -230,6 +230,7 @@ public class ExcelExportService {
 
         headerRow.createCell(colNum++).setCellValue("Total Sorties (kg)");
         headerRow.createCell(colNum++).setCellValue("Statut");
+        headerRow.createCell(colNum++).setCellValue("Saisi par");
 
         // Appliquer le style d'en-tête
         for (int i = 0; i < colNum; i++) {
@@ -314,6 +315,7 @@ public class ExcelExportService {
 
             // Statut
             dataRow.createCell(colNum++).setCellValue(production.getStatut() != null ? production.getStatut().toString() : "N/A");
+            dataRow.createCell(colNum++).setCellValue(production.getSaisiPar() != null ? production.getSaisiPar() : "");
         }
 
         // Redimensionner toutes les colonnes
@@ -354,6 +356,7 @@ public class ExcelExportService {
 
         headerRow.createCell(colNum++).setCellValue("Performance Globale (%)");
         headerRow.createCell(colNum++).setCellValue("Statut");
+        headerRow.createCell(colNum++).setCellValue("Saisi par");
 
         // Appliquer le style d'en-tête
         for (int i = 0; i < colNum; i++) {
@@ -429,6 +432,7 @@ public class ExcelExportService {
 
             // Statut
             dataRow.createCell(colNum++).setCellValue(production.getStatut().toString());
+            dataRow.createCell(colNum++).setCellValue(production.getSaisiPar() != null ? production.getSaisiPar() : "");
         }
 
         // Redimensionner toutes les colonnes

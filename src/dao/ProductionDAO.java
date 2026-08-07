@@ -25,9 +25,9 @@ public class ProductionDAO {
      */
     public Long creer(ProductionModel production) throws SQLException {
         String queryProduction = """
-            INSERT INTO productions (matiere_premiere_id, date_production, heure_production, 
-                                   quantite_entree_reelle, statut, message_erreur)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO productions (matiere_premiere_id, date_production, heure_production,
+                                   quantite_entree_reelle, statut, message_erreur, saisi_par)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
 
         try (Connection conn = dbManager.getConnection()) {
@@ -42,6 +42,7 @@ public class ProductionDAO {
                     stmt.setDouble(4, production.getQuantiteEntreeReelle());
                     stmt.setString(5, production.getStatut());
                     stmt.setString(6, production.getMessageErreur());
+                    stmt.setString(7, production.getSaisiPar());
 
                     int rowsAffected = stmt.executeUpdate();
                     if (rowsAffected == 0) {
@@ -104,7 +105,7 @@ public class ProductionDAO {
     public List<ProductionModel> listerParMatiere(Long matierePremiereId) throws SQLException {
         String query = """
             SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
-                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation, p.saisi_par
             FROM productions p
             WHERE p.matiere_premiere_id = ?
             ORDER BY p.date_production DESC, p.heure_production DESC
@@ -137,7 +138,7 @@ public class ProductionDAO {
                                                          LocalDate dateFin) throws SQLException {
         String query = """
             SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
-                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation, p.saisi_par
             FROM productions p
             WHERE p.matiere_premiere_id = ? 
               AND p.date_production >= ? 
@@ -172,7 +173,7 @@ public class ProductionDAO {
     public ProductionModel trouverParId(Long id) throws SQLException {
         String query = """
             SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
-                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+                   p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation, p.saisi_par
             FROM productions p
             WHERE p.id = ?
             """;
@@ -327,7 +328,7 @@ public class ProductionDAO {
     public List<ProductionModel> listerToutes() throws SQLException {
         String query = """
         SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
-               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation, p.saisi_par
         FROM productions p
         ORDER BY p.date_production DESC, p.heure_production DESC
         """;
@@ -355,7 +356,7 @@ public class ProductionDAO {
     public List<ProductionModel> listerToutesPeriode(LocalDate dateDebut, LocalDate dateFin) throws SQLException {
         String query = """
         SELECT p.id, p.matiere_premiere_id, p.date_production, p.heure_production,
-               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation
+               p.quantite_entree_reelle, p.statut, p.message_erreur, p.date_creation, p.saisi_par
         FROM productions p
         WHERE p.date_production >= ? 
           AND p.date_production <= ?
@@ -392,6 +393,7 @@ public class ProductionDAO {
         production.setQuantiteEntreeReelle(rs.getDouble("quantite_entree_reelle"));
         production.setStatut(rs.getString("statut"));
         production.setMessageErreur(rs.getString("message_erreur"));
+        production.setSaisiPar(rs.getString("saisi_par"));
 
         Timestamp timestamp = rs.getTimestamp("date_creation");
         if (timestamp != null) {

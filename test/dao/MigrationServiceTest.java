@@ -91,16 +91,18 @@ class MigrationServiceTest {
             // L'utilisateur tourne avec la version livree
             new MigrationService(SchemaApplicatif.migrations()).appliquer(conn);
 
-            // Une mise a jour ajoute une colonne
+            // Une mise a jour ajoute une colonne. Le numero est calcule a partir
+            // du schema livre pour que ce test resiste a l'ajout de vraies migrations.
+            int prochaine = SchemaApplicatif.versionAttendue() + 1;
             List<Migration> versionSuivante = new java.util.ArrayList<>(SchemaApplicatif.migrations());
-            versionSuivante.add(new Migration(2, "Ajout du commentaire de production",
+            versionSuivante.add(new Migration(prochaine, "Ajout du commentaire de production",
                     "ALTER TABLE productions ADD COLUMN commentaire TEXT"));
 
             MigrationService service = new MigrationService(versionSuivante);
             assertEquals(1, service.migrationsEnAttente(conn).size());
-            assertEquals(1, service.appliquer(conn), "seule la migration 2 doit etre jouee");
+            assertEquals(1, service.appliquer(conn), "seule la nouvelle migration doit etre jouee");
 
-            assertEquals(2, service.versionActuelle(conn));
+            assertEquals(prochaine, service.versionActuelle(conn));
             assertTrue(colonneExiste(conn, "productions", "commentaire"));
         }
     }
@@ -117,7 +119,7 @@ class MigrationServiceTest {
             }
 
             List<Migration> versionSuivante = new java.util.ArrayList<>(SchemaApplicatif.migrations());
-            versionSuivante.add(new Migration(2, "Ajout d'une colonne",
+            versionSuivante.add(new Migration(SchemaApplicatif.versionAttendue() + 1, "Ajout d'une colonne",
                     "ALTER TABLE matieres_premieres ADD COLUMN fournisseur TEXT"));
             new MigrationService(versionSuivante).appliquer(conn);
 
@@ -137,7 +139,7 @@ class MigrationServiceTest {
             new MigrationService(SchemaApplicatif.migrations()).appliquer(conn);
 
             List<Migration> avecErreur = new java.util.ArrayList<>(SchemaApplicatif.migrations());
-            avecErreur.add(new Migration(2, "Migration cassee",
+            avecErreur.add(new Migration(SchemaApplicatif.versionAttendue() + 1, "Migration cassee",
                     "ALTER TABLE productions ADD COLUMN valide TEXT",
                     "CETTE INSTRUCTION N'EST PAS DU SQL"));
 
@@ -145,8 +147,8 @@ class MigrationServiceTest {
 
             assertThrows(SQLException.class, () -> service.appliquer(conn));
 
-            assertEquals(1, service.versionActuelle(conn),
-                    "la base doit rester en version 1");
+            assertEquals(SchemaApplicatif.versionAttendue(), service.versionActuelle(conn),
+                    "la base doit rester a la version livree");
             assertFalse(colonneExiste(conn, "productions", "valide"),
                     "la premiere instruction doit avoir ete annulee avec le reste");
         }
@@ -158,9 +160,10 @@ class MigrationServiceTest {
         try (Connection conn = ouvrir()) {
             new MigrationService(SchemaApplicatif.migrations()).appliquer(conn);
 
+            int prochaine = SchemaApplicatif.versionAttendue() + 1;
             List<Migration> suite = new java.util.ArrayList<>(SchemaApplicatif.migrations());
-            suite.add(new Migration(2, "Migration cassee", "PAS DU SQL"));
-            suite.add(new Migration(3, "Migration valable",
+            suite.add(new Migration(prochaine, "Migration cassee", "PAS DU SQL"));
+            suite.add(new Migration(prochaine + 1, "Migration valable",
                     "ALTER TABLE productions ADD COLUMN operateur TEXT"));
 
             assertThrows(SQLException.class, () -> new MigrationService(suite).appliquer(conn));

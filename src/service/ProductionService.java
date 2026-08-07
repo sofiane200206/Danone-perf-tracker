@@ -36,6 +36,12 @@ public class ProductionService {
             if (production.isDonneeComplete()) {
                 production.validerProduction();
 
+                // Tracer l'auteur de la saisie : sur un poste partage, cela permet
+                // de lever un doute sur une valeur sans interroger tout le monde
+                if (production.getSaisiPar() == null) {
+                    production.setSaisiPar(SessionManager.getInstance().getIdentifiantConnecte());
+                }
+
                 // Sauvegarder en base de données
                 Long id = productionDAO.creer(production);
                 production.setId(id);

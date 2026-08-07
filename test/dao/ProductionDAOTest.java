@@ -158,4 +158,24 @@ class ProductionDAOTest {
     void trouverParIdInexistant() throws SQLException {
         assertNull(productionDAO.trouverParId(999_999L));
     }
+
+    @Test
+    @DisplayName("L'auteur de la saisie est conserve et relu")
+    void auteurDeLaSaisieConserve() throws SQLException {
+        ProductionModel p = nouvelleProduction(LE_5_JANVIER, 100.0, 55.0, 18.0);
+        p.setSaisiPar("operateur_nuit");
+
+        Long id = productionDAO.creer(p);
+
+        assertEquals("operateur_nuit", productionDAO.trouverParId(id).getSaisiPar());
+    }
+
+    @Test
+    @DisplayName("Une production sans auteur reste enregistrable")
+    void productionSansAuteurAcceptee() throws SQLException {
+        // Cas des productions saisies avant la mise en place de la trace
+        Long id = productionDAO.creer(nouvelleProduction(LE_5_JANVIER, 100.0, 55.0, 18.0));
+
+        assertNull(productionDAO.trouverParId(id).getSaisiPar());
+    }
 }

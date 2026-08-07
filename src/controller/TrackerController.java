@@ -57,6 +57,8 @@ public class TrackerController {
     @FXML private Label labelUtilisateurConnecte;
     @FXML private Button btnGererComptes;
     @FXML private Button btnChangerMotDePasse;
+    @FXML private Button btnResetComplet;
+    @FXML private Button btnSupprimerMatiere;
     @FXML private FlowPane panneauxSuperieurs;
     @FXML private VBox panneauMatiere;
     @FXML private VBox panneauStatistiques;
@@ -1635,6 +1637,14 @@ public class TrackerController {
     }
     @FXML
     public void resetBaseDonnees() {
+        // Effacer tout l'historique de production ne doit pas etre a la portee
+        // d'un operateur, surtout sur un poste partage
+        if (currentRole == UserRole.USER) {
+            afficherErreur("Accès refusé",
+                    "Seuls les administrateurs peuvent réinitialiser la base de données.");
+            return;
+        }
+
         try {
             // 1. Vérifier s'il y a des données à sauvegarder
             int nbProductions = databaseResetService.compterProductionsExistantes();
@@ -1767,7 +1777,17 @@ public class TrackerController {
             }
         }
 
-        // 3. Ajouter un label informatif
+        // 3. Retirer les actions destructrices de la vue
+        if (btnResetComplet != null) {
+            btnResetComplet.setVisible(false);
+            btnResetComplet.setManaged(false);
+        }
+        if (btnSupprimerMatiere != null) {
+            btnSupprimerMatiere.setVisible(false);
+            btnSupprimerMatiere.setManaged(false);
+        }
+
+        // 4. Ajouter un label informatif
         if (sortiesIdealesContainer != null && sortiesIdealesContainer.getChildren().size() > 0) {
             Label infoLabel = new Label("ℹ️ Seuls les administrateurs peuvent créer/modifier les matières premières");
             infoLabel.setStyle("-fx-text-fill: #ff6b6b; -fx-font-weight: bold; -fx-padding: 10;");

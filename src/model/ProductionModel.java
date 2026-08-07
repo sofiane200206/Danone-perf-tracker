@@ -30,6 +30,8 @@ public class ProductionModel {
     private String statut; // "VALIDE", "ERREUR", "INCOMPLETE"
     private String messageErreur;
     private LocalDateTime dateCreation;
+    /** Identifiant du compte ayant enregistre la saisie. Vide pour les productions anterieures. */
+    private String saisiPar;
 
     // Constructeurs
     public ProductionModel() {
@@ -240,6 +242,9 @@ public class ProductionModel {
 
     public LocalDateTime getDateCreation() { return dateCreation; }
     public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
+
+    public String getSaisiPar() { return saisiPar; }
+    public void setSaisiPar(String saisiPar) { this.saisiPar = saisiPar; }
 
     // Classe interne pour les sorties réelles
     public static class SortieReelle {
